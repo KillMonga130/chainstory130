@@ -1,19 +1,21 @@
 ## Chain Story - Collaborative Storytelling Game
 
-A real-time collaborative storytelling game built on Reddit's Devvit platform where users work together to create 100-sentence stories through community voting.
+A real-time collaborative storytelling game built on Reddit's Devvit platform where communities work together to create epic 100-sentence stories through democratic voting and creative collaboration.
 
 ### What is Chain Story?
 
-Chain Story is an innovative social game that transforms Reddit into a collaborative writing platform. Players submit sentences to continue an ongoing story, and the community votes on the best contributions. Every hour, the highest-voted sentence becomes the official next part of the story. When a story reaches 100 sentences, it's completed and archived, and a new story begins.
+Chain Story transforms Reddit into a dynamic collaborative writing platform where every community member becomes a co-author. Players submit sentences to continue an ongoing story, and the community votes on the best contributions using Reddit's native upvote system. Every hour at the top of the hour (UTC), the highest-voted sentence becomes the official next part of the story. When a story reaches exactly 100 sentences, it's completed, archived, and celebrated on the leaderboard while a fresh story automatically begins.
 
-### What Makes Chain Story Unique?
+### What Makes Chain Story Innovative?
 
-- **Community-Driven Narrative**: Stories evolve based on collective creativity and democratic voting
-- **Hourly Rounds**: Creates excitement and urgency with regular voting cycles
-- **Reddit Integration**: Leverages Reddit's native commenting and voting systems for gameplay
-- **Persistent Stories**: Completed stories are archived and ranked on leaderboards
-- **Real-Time Collaboration**: Multiple users can contribute simultaneously to the same story
-- **Character Limits**: 10-150 character constraint encourages concise, impactful writing
+- **Democratic Storytelling**: Every sentence is chosen by community vote, creating truly collaborative narratives
+- **Hourly Drama**: Regular voting cycles create anticipation and engagement throughout the day
+- **Native Reddit Integration**: Uses Reddit's commenting and voting systems as core gameplay mechanics
+- **Progressive Narrative Building**: Stories develop organically through 100 rounds of community creativity
+- **Persistent Legacy**: Completed stories become permanent community achievements displayed in archives
+- **Real-Time Engagement**: Live countdown timers and instant updates keep players connected
+- **Constrained Creativity**: 10-150 character limits force concise, impactful storytelling
+- **Multi-Tab Experience**: Seamlessly switch between active story, leaderboards, and archives
 
 ### Technology Stack
 
