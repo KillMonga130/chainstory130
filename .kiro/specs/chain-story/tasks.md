@@ -9,7 +9,6 @@
 
 - [x] 2. Replace counter data models with Chain Story schema
 
-
   - [x] 2.1 Replace existing API types with Chain Story interfaces
 
     - Replace counter types in src/shared/types/api.ts with Story, Round, Submission types
@@ -29,23 +28,23 @@
     - Test error handling for invalid data
     - _Requirements: 2.2, 4.2, 5.2_
 
-- [ ] 3. Replace counter API with Chain Story endpoints
+- [x] 3. Replace counter API with Chain Story endpoints
 
-  - [ ] 3.1 Replace existing counter endpoints with story management
+  - [x] 3.1 Replace existing counter endpoints with story management
 
     - Replace /api/init with /api/story/current
     - Replace /api/increment and /api/decrement with /api/submit-sentence
     - Keep existing Express middleware and error handling
     - _Requirements: 2.1, 3.1, 4.1_
 
-  - [ ] 3.2 Implement story management API endpoints
+  - [x] 3.2 Implement story management API endpoints
 
     - GET /api/story/current - retrieve active story with sentences and stats
     - POST /api/submit-sentence - submit new sentence and post as Reddit comment
     - Add sentence validation (10-150 characters)
     - _Requirements: 1.1, 1.2, 2.1, 2.2_
 
-  - [ ] 3.3 Extend existing Reddit integration for comments
+  - [x] 3.3 Extend existing Reddit integration for comments
 
     - Use existing reddit context from @devvit/web/server
     - Implement comment posting with "[Round N] sentence" format
@@ -58,9 +57,9 @@
     - Test error handling and validation
     - _Requirements: 2.2, 3.3, 4.2_
 
-- [ ] 4. Add scheduled jobs to existing Devvit configuration
+- [x] 4. Add scheduled jobs to existing Devvit configuration
 
-  - [ ] 4.1 Create hourly round resolution job
+  - [x] 4.1 Create hourly round resolution job
 
     - Add scheduler configuration to devvit.json for hourly execution
     - Implement job handler in server/index.ts to run every hour at :00 UTC
@@ -69,7 +68,7 @@
     - Append winning sentence to story and update round number
     - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-  - [ ] 4.2 Implement story completion and archival logic
+  - [x] 4.2 Implement story completion and archival logic
 
     - Check for 100-sentence completion after each round
     - Move completed stories to archive
@@ -77,7 +76,7 @@
     - Handle edge case of no submissions with fallback sentence
     - _Requirements: 5.1, 5.2, 5.3, 4.6_
 
-  - [ ] 4.3 Create daily maintenance job
+  - [x] 4.3 Create daily maintenance job
 
     - Implement daily job for 00:00 UTC execution
     - Update leaderboard rankings
@@ -91,9 +90,10 @@
     - Test daily maintenance operations
     - _Requirements: 4.1, 5.1, 11.1_
 
-- [ ] 5. Add real-time updates to existing Devvit app
+- [x] 5. Add real-time updates to existing Devvit app
 
-  - [ ] 5.1 Integrate Devvit real-time channels
+
+  - [x] 5.1 Integrate Devvit real-time channels
 
     - Add @devvit/web real-time channel support to existing server
     - Configure single global channel "story-updates"
@@ -101,7 +101,7 @@
     - Create message types for different update scenarios
     - _Requirements: 8.1, 8.2, 4.5_
 
-  - [ ] 5.2 Integrate real-time updates with round resolution
+  - [x] 5.2 Integrate real-time updates with round resolution
 
     - Broadcast story updates when new sentences are added
     - Send completion notifications when stories finish

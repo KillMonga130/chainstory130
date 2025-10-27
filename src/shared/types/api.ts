@@ -88,6 +88,34 @@ export type ArchiveResponse = {
   currentPage: number;
 };
 
+// Real-time message types
+export type StoryUpdateMessage = {
+  type: 'story-update';
+  story: Story;
+  roundTimeRemaining: number;
+  newSentence?: {
+    sentence: string;
+    roundNumber: number;
+    userId: string;
+    upvotes: number;
+  } | undefined;
+};
+
+export type NewRoundMessage = {
+  type: 'new-round';
+  storyId: string;
+  roundNumber: number;
+  roundTimeRemaining: number;
+};
+
+export type StoryCompleteMessage = {
+  type: 'story-complete';
+  completedStory: Story;
+  newStory: Story;
+};
+
+export type RealTimeMessage = StoryUpdateMessage | NewRoundMessage | StoryCompleteMessage;
+
 // Validation functions
 export function validateSentenceLength(sentence: string): { valid: boolean; error?: string } {
   const trimmed = sentence.trim();
