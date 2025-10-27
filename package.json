@@ -1,6 +1,7 @@
 {
   "private": true,
   "name": "chainstory130",
+  "description": "Chain Story - A collaborative storytelling game for Reddit where community members create stories together one sentence at a time",
   "version": "0.0.0",
   "license": "BSD-3-Clause",
   "type": "module",
