@@ -29,36 +29,87 @@ Chain Story transforms Reddit into a dynamic collaborative writing platform wher
 
 ## How to Play Chain Story
 
-### For Players:
+### Step-by-Step Gameplay:
 
-1. **Join the Story**: Open the Chain Story app in a Reddit post to see the current collaborative story
-2. **Read the Current Story**: Review all previous sentences (numbered 1-100) to understand the narrative so far
-3. **Submit Your Sentence**: 
-   - Write a sentence between 10-150 characters that continues the story
-   - Make it engaging and build on what came before
-   - Submit your contribution as a Reddit comment
-4. **Vote on Submissions**: Upvote the best sentences submitted by other players during the current round
-5. **Wait for Round Resolution**: Every hour at :00 UTC, the highest-voted sentence becomes official
-6. **Watch the Story Grow**: Return to see how your sentence (if it won) or others' sentences advance the narrative
-7. **Story Completion**: When the 100th sentence is added, the story is complete and archived
+#### 1. **Enter the Story Tab**
+- Open Chain Story in a Reddit post to access the main game interface
+- The **Story tab** shows the current collaborative story in progress
+- Read all existing sentences (numbered [1] through [current]) to understand the narrative
 
-### Game Rules:
+#### 2. **Understand the Current Round**
+- Check the round counter (e.g., "Round 15 • 14/100 sentences")
+- Watch the live countdown timer showing time until the next round
+- See real-time statistics: total votes, contributors, and story status
 
-- **Sentence Length**: Must be 10-150 characters (enforced by the system)
-- **One Submission Per Round**: Players can submit one sentence per hourly round
-- **Voting Period**: You have up to one hour to vote on submissions before the round ends
-- **Democratic Selection**: The sentence with the most upvotes wins each round
-- **Story Progression**: Stories must reach exactly 100 sentences to be considered complete
-- **No Editing**: Once submitted, sentences cannot be modified (Reddit comment rules apply)
+#### 3. **Submit Your Creative Contribution**
+- Scroll to the submission form below the story display
+- Write a sentence that continues the narrative (10-150 characters required)
+- Use the live character counter to stay within limits
+- The word counter helps you craft concise, impactful sentences
+- Click "Submit Sentence" to post your contribution as a Reddit comment
 
-### Game Features:
+#### 4. **Participate in Community Voting**
+- Your sentence appears as a Reddit comment on the post
+- Other players vote using Reddit's upvote system
+- Vote on other players' sentences to help choose the best continuation
+- The submission with the most upvotes wins the round
 
-- **Live Story Display**: See the current story with all sentences numbered and organized
-- **Real-Time Stats**: Track contributors, total votes, and story progress
-- **Character Counter**: Visual feedback on sentence length while typing
-- **Round Timer**: Know exactly when the next round begins
-- **Story Archive**: Browse completed 100-sentence stories
-- **Leaderboard**: See the most popular completed stories ranked by total votes
+#### 5. **Watch Round Resolution**
+- Every hour at :00 UTC, the round automatically ends
+- The highest-voted sentence becomes the official next part of the story
+- The story updates in real-time with the winning sentence
+- A new round begins immediately for the next sentence
+
+#### 6. **Explore Community Achievements**
+- **Leaderboard Tab**: View the top 10 completed stories ranked by total votes
+- **Archive Tab**: Browse all completed 100-sentence stories with full text
+- Sort archives by completion date or popularity
+- Read complete stories with expandable full-text views
+
+#### 7. **Story Completion Celebration**
+- When the 100th sentence is added, the story is marked complete
+- Completed stories are automatically archived and added to the leaderboard
+- A new story begins immediately for continued community collaboration
+
+### Game Rules & Mechanics:
+
+#### **Submission Rules:**
+- **Character Limit**: Sentences must be 10-150 characters (strictly enforced)
+- **One Per Round**: Each player can submit one sentence per hourly round
+- **No Editing**: Submissions cannot be modified once posted (Reddit comment rules)
+- **Content Guidelines**: Follow Reddit's community guidelines and subreddit rules
+
+#### **Voting & Selection:**
+- **Democratic Process**: Community votes determine winning sentences using Reddit upvotes
+- **Hourly Cycles**: Rounds end precisely at :00 UTC every hour
+- **Automatic Resolution**: System automatically selects the highest-voted submission
+- **Tie Breaking**: In case of ties, the earliest submission wins
+
+#### **Story Progression:**
+- **Fixed Length**: All stories must reach exactly 100 sentences to complete
+- **Sequential Building**: Each sentence builds on all previous sentences
+- **Persistent Progress**: Stories continue across multiple days until completion
+- **Automatic Archival**: Completed stories are immediately archived and ranked
+
+### Advanced Features:
+
+#### **Real-Time Experience:**
+- **Live Updates**: Story display updates automatically when rounds resolve
+- **Countdown Timers**: Always know exactly when the next round begins
+- **Status Indicators**: Visual feedback for submission success/failure
+- **Responsive Design**: Optimized for both mobile and desktop Reddit users
+
+#### **Community Features:**
+- **Contributor Tracking**: See how many unique players contributed to each story
+- **Vote Aggregation**: Total community votes across all rounds displayed
+- **Story Statistics**: Detailed metrics for each completed story
+- **Leaderboard Rankings**: Stories ranked by total community engagement
+
+#### **Archive System:**
+- **Pagination**: Browse archives 10 stories at a time
+- **Sorting Options**: Sort by completion date or total votes
+- **Full Story View**: Expand any archived story to read the complete 100-sentence narrative
+- **Search & Discovery**: Easy navigation through community's storytelling history
 
 ## Getting Started for Developers
 
@@ -83,23 +134,48 @@ Chain Story transforms Reddit into a dynamic collaborative writing platform wher
 
 ```
 src/
-├── client/          # React frontend (runs in Reddit webview)
-│   ├── App.tsx      # Main game interface
-│   ├── hooks/       # React hooks for game logic
-│   └── main.tsx     # App entry point
-├── server/          # Express backend (API endpoints)
-│   └── index.ts     # Server with Reddit integration
-└── shared/          # Shared TypeScript types
-    └── types/api.ts # Game data structures
+├── client/                    # React frontend (runs in Reddit webview)
+│   ├── App.tsx               # Main app with tab navigation
+│   ├── main.tsx              # React app entry point
+│   ├── index.html            # HTML template
+│   ├── index.css             # Tailwind CSS styles
+│   ├── hooks/                # Custom React hooks
+│   │   └── useStory.ts       # Story state management
+│   └── components/           # React UI components
+│       ├── StoryDisplay.tsx  # Current story viewer with countdown
+│       ├── SubmissionForm.tsx # Sentence submission interface
+│       ├── Leaderboard.tsx   # Top stories ranking
+│       └── Archive.tsx       # Completed stories browser
+├── server/                   # Express backend (API endpoints)
+│   ├── index.ts             # Main server with Reddit integration
+│   ├── core/                # Business logic modules
+│   └── jobs/                # Scheduled job handlers
+└── shared/                  # Shared TypeScript definitions
+    └── types/api.ts         # Game data structures & validation
 ```
 
 ## Game Architecture
 
-- **Frontend**: React app displaying story interface and submission form
-- **Backend**: Express server handling story data and Reddit API integration
-- **Data Storage**: Redis (via Devvit) for persistent story and user data
-- **Real-Time Updates**: Scheduled jobs for hourly round resolution
-- **Reddit Integration**: Comments for submissions, voting for selection
+### **Frontend Architecture:**
+- **React SPA**: Single-page application with tab-based navigation
+- **Component-Based**: Modular UI components for story display, submission, leaderboard, and archive
+- **Real-Time Updates**: Live countdown timers and automatic story refreshing
+- **Responsive Design**: Mobile-first design optimized for Reddit's diverse user base
+- **State Management**: Custom hooks for story data and submission handling
+
+### **Backend Architecture:**
+- **Express Server**: RESTful API endpoints for all game operations
+- **Scheduled Jobs**: Automated hourly round resolution and daily maintenance
+- **Reddit Integration**: Native comment posting and vote retrieval via Devvit SDK
+- **Data Persistence**: Redis-based storage for stories, rounds, and user contributions
+- **Real-Time Messaging**: WebSocket-like updates through Devvit's real-time channels
+
+### **Data Flow:**
+1. **Story Creation**: New stories automatically created when previous ones complete
+2. **Submission Process**: Player sentences posted as Reddit comments via API
+3. **Vote Aggregation**: Hourly jobs fetch comment votes and determine winners
+4. **Story Updates**: Winning sentences added to story and broadcast to all players
+5. **Completion Handling**: 100-sentence stories archived and new ones initiated
 
 ## Cursor Integration
 

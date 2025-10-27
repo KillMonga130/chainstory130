@@ -92,7 +92,6 @@
 
 - [x] 5. Add real-time updates to existing Devvit app
 
-
   - [x] 5.1 Integrate Devvit real-time channels
 
     - Add @devvit/web real-time channel support to existing server
@@ -116,14 +115,7 @@
 
 - [x] 6. Transform existing React app into Chain Story interface
 
-
-
-
-
-
   - [x] 6.1 Replace counter App with Chain Story navigation
-
-
 
     - Replace existing counter UI with tab navigation (Story/Leaderboard/Archive)
     - Update useCounter hook to useStory hook for story data
@@ -131,8 +123,6 @@
     - _Requirements: 1.1, 8.1, 12.1_
 
   - [x] 6.2 Create StoryDisplay component
-
-
 
     - Display current story with numbered sentences
     - Show story statistics (sentences, votes, contributors, round)
@@ -142,8 +132,6 @@
 
   - [x] 6.3 Create SubmissionForm component
 
-
-
     - Build text input with character count validation
     - Implement real-time character counter (10-150 chars)
     - Add form submission with loading states
@@ -152,8 +140,6 @@
 
   - [x] 6.4 Build Leaderboard component
 
-
-
     - Display top 10 completed stories in ranked table
     - Show rank, creator, sentence count, and total votes
     - Implement click-to-expand story preview
@@ -161,8 +147,6 @@
     - _Requirements: 6.1, 6.2, 6.4, 6.5_
 
   - [x] 6.5 Implement Archive component
-
-
 
     - Create paginated view of completed stories (10 per page)
     - Add sorting options (date/popularity)

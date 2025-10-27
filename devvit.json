@@ -16,12 +16,6 @@
   "media": {
     "dir": "assets"
   },
-  "permissions": {
-    "reddit": {
-      "posts": "read_write",
-      "comments": "read_write"
-    }
-  },
   "menu": {
     "items": [
       {
