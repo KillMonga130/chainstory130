@@ -1,19 +1,57 @@
 import { navigateTo } from '@devvit/web/client';
 import { useStory } from './hooks/useStory';
-import { useState } from 'react';
-import { StoryDisplay, SubmissionForm, Leaderboard, Archive } from './components';
+import { useState, lazy, Suspense } from 'react';
+import { 
+  StoryDisplay, 
+  SubmissionForm, 
+  LoadingSpinner, 
+  LeaderboardSkeleton, 
+  ArchiveSkeleton,
+  ConnectionStatus,
+  ErrorBoundary,
+  NetworkError
+} from './components';
+
+// Lazy load components that aren't immediately needed
+const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
+const Archive = lazy(() => import('./components/Archive').then(module => ({ default: module.Archive })));
 
 type TabType = 'story' | 'leaderboard' | 'archive';
 
 export const App = () => {
-  const { story, loading, submitting, lastSubmissionMessage, submitSentence, refreshStory } =
-    useStory();
+  const { 
+    story, 
+    loading, 
+    submitting, 
+    lastSubmissionMessage, 
+    error,
+    isRetrying,
+    retryCount,
+    submitSentence, 
+    refreshStory,
+    retryLoadStory,
+    networkStatus
+  } = useStory();
   const [activeTab, setActiveTab] = useState<TabType>('story');
 
-  if (loading) {
+  // Show error state if there's an error and no story data
+  if (error && !story && !loading) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl">Loading Chain Story...</div>
+      <div className="flex justify-center items-center min-h-screen safe-area-padding p-4">
+        <NetworkError
+          onRetry={retryLoadStory}
+          retrying={isRetrying}
+          retryCount={retryCount}
+          maxRetries={3}
+        />
+      </div>
+    );
+  }
+
+  if (loading && !story) {
+    return (
+      <div className="flex justify-center items-center min-h-screen safe-area-padding">
+        <LoadingSpinner message="Loading Chain Story..." />
       </div>
     );
   }
@@ -41,24 +79,36 @@ export const App = () => {
           </div>
         );
       case 'leaderboard':
-        return <Leaderboard />;
+        return (
+          <Suspense fallback={<LeaderboardSkeleton />}>
+            <Leaderboard />
+          </Suspense>
+        );
       case 'archive':
-        return <Archive />;
+        return (
+          <Suspense fallback={<ArchiveSkeleton />}>
+            <Archive />
+          </Suspense>
+        );
       default:
         return null;
     }
   };
 
   return (
-    <div className="flex relative flex-col min-h-screen">
-      <div className="w-full max-w-4xl mx-auto p-4">
-        <h1 className="text-3xl font-bold text-center text-gray-900 mb-6">Chain Story</h1>
+    <ErrorBoundary>
+      <div className="flex relative flex-col min-h-screen safe-area-padding">
+        {/* Connection status indicator */}
+        <ConnectionStatus isOnline={networkStatus.isOnline} />
+        
+        <div className="w-full max-w-4xl mx-auto p-3 sm:p-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-4 sm:mb-6">Chain Story</h1>
 
-        {/* Tab Navigation */}
-        <div className="flex border-b border-gray-200 mb-6">
+        {/* Tab Navigation - Mobile optimized */}
+        <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('story')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
               activeTab === 'story'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -68,7 +118,7 @@ export const App = () => {
           </button>
           <button
             onClick={() => setActiveTab('leaderboard')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
               activeTab === 'leaderboard'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -78,7 +128,7 @@ export const App = () => {
           </button>
           <button
             onClick={() => setActiveTab('archive')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
               activeTab === 'archive'
                 ? 'border-blue-500 text-blue-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -89,16 +139,16 @@ export const App = () => {
         </div>
 
         {/* Tab Content */}
-        <div className="min-h-96">
+        <div className="min-h-[24rem]">
           {renderTabContent()}
         </div>
 
-        {/* Refresh Button - Only show on Story tab */}
+        {/* Refresh Button - Only show on Story tab, mobile optimized */}
         {activeTab === 'story' && (
-          <div className="text-center mt-6">
+          <div className="text-center mt-4 sm:mt-6">
             <button
               onClick={refreshStory}
-              className="bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors"
+              className="touch-button bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors font-medium"
             >
               Refresh Story
             </button>
@@ -106,28 +156,29 @@ export const App = () => {
         )}
       </div>
 
-      <footer className="mt-auto py-4 flex justify-center gap-3 text-[0.8em] text-gray-600">
+      <footer className="mt-auto py-4 flex justify-center gap-3 text-xs sm:text-sm text-gray-600 safe-area-padding">
         <button
-          className="cursor-pointer hover:text-gray-800"
+          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
           onClick={() => navigateTo('https://developers.reddit.com/docs')}
         >
           Docs
         </button>
         <span className="text-gray-300">|</span>
         <button
-          className="cursor-pointer hover:text-gray-800"
+          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
           onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
         >
           r/Devvit
         </button>
         <span className="text-gray-300">|</span>
         <button
-          className="cursor-pointer hover:text-gray-800"
+          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
           onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
         >
           Discord
         </button>
       </footer>
-    </div>
+      </div>
+    </ErrorBoundary>
   );
 };

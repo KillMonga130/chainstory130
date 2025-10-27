@@ -1,29 +1,97 @@
 import { useEffect, useState } from 'react';
 import type { LeaderboardEntry, LeaderboardResponse } from '../../shared/types/api';
+import { LeaderboardSkeleton } from './LoadingStates';
+import { NetworkError } from './ErrorStates';
+import { apiRequest, ApiError } from '../utils/api';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+
+// Simple in-memory cache for API responses
+const apiCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+
+const getCachedData = (key: string): any | null => {
+  const cached = apiCache.get(key);
+  if (!cached) return null;
+  
+  if (Date.now() - cached.timestamp > cached.ttl) {
+    apiCache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+};
+
+const setCachedData = (key: string, data: any, ttl: number = 5000) => {
+  apiCache.set(key, { data, timestamp: Date.now(), ttl });
+};
 
 export const Leaderboard = () => {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [expandedStory, setExpandedStory] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const networkStatus = useNetworkStatus();
 
-  const loadLeaderboard = async () => {
+  const loadLeaderboard = async (useCache = true, isRetry = false) => {
+    const cacheKey = 'leaderboard-top-10';
+    
+    // Try cache first if enabled and not a retry
+    if (useCache && !isRetry) {
+      const cachedData = getCachedData(cacheKey);
+      if (cachedData) {
+        setLeaderboard(cachedData);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
+    // Check network status
+    if (!networkStatus.isOnline) {
+      const networkError = new Error('No internet connection') as ApiError;
+      networkError.code = 'NETWORK_OFFLINE';
+      networkError.retryable = true;
+      setError(networkError);
+      setLoading(false);
+      setIsRetrying(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      setLoading(!isRetry); // Don't show loading on retry
+      setIsRetrying(isRetry);
       setError(null);
 
-      const res = await fetch('/api/leaderboard/top-10');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await apiRequest<LeaderboardResponse>(
+        '/api/leaderboard/top-10',
+        {
+          headers: useCache ? {} : { 'Cache-Control': 'no-cache' }
+        },
+        {
+          maxRetries: isRetry ? 0 : 2, // Don't retry on manual retry
+          baseDelay: 1000,
+          maxDelay: 5000
+        }
+      );
       
-      const data: LeaderboardResponse = await res.json();
-      if (data.type !== 'leaderboard') throw new Error('Unexpected response type');
+      if (data.type !== 'leaderboard') {
+        throw new Error('Invalid response format') as ApiError;
+      }
+      
+      // Cache for 30 seconds (leaderboard doesn't change frequently)
+      setCachedData(cacheKey, data.stories, 30000);
       
       setLeaderboard(data.stories);
+      setRetryCount(0);
     } catch (err) {
-      console.error('Failed to load leaderboard', err);
-      setError(err instanceof Error ? err.message : 'Failed to load leaderboard');
+      const apiError = err as ApiError;
+      console.error('Failed to load leaderboard', apiError);
+      setError(apiError);
+      setRetryCount(isRetry ? retryCount : retryCount + 1);
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   };
 
@@ -56,29 +124,22 @@ export const Leaderboard = () => {
     setExpandedStory(expandedStory === storyId ? null : storyId);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-xl text-gray-600">Loading leaderboard...</div>
-      </div>
-    );
+  const retryLoadLeaderboard = () => {
+    loadLeaderboard(false, true);
+  };
+
+  if (loading && leaderboard.length === 0) {
+    return <LeaderboardSkeleton />;
   }
 
-  if (error) {
+  if (error && leaderboard.length === 0) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex items-center mb-2">
-          <span className="text-red-500 mr-2">❌</span>
-          <h3 className="text-lg font-semibold text-red-800">Error Loading Leaderboard</h3>
-        </div>
-        <p className="text-red-700 mb-4">{error}</p>
-        <button
-          onClick={loadLeaderboard}
-          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
+      <NetworkError
+        onRetry={retryLoadLeaderboard}
+        retrying={isRetrying}
+        retryCount={retryCount}
+        maxRetries={3}
+      />
     );
   }
 
@@ -99,15 +160,58 @@ export const Leaderboard = () => {
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Top Stories</h2>
         <button
-          onClick={loadLeaderboard}
+          onClick={() => loadLeaderboard(false)}
           className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1 rounded-lg transition-colors"
         >
           Refresh
         </button>
       </div>
 
+      {/* Mobile-first responsive design */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card layout for small screens */}
+        <div className="block sm:hidden">
+          <div className="divide-y divide-gray-200">
+            {leaderboard.map((entry) => (
+              <div key={entry.storyId} className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-center">
+                    <span className="text-xl font-bold text-gray-900 mr-3">
+                      {getRankIcon(entry.rank)}
+                    </span>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900 line-clamp-2">
+                        {entry.preview}...
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        by u/{entry.creator}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4 text-xs text-gray-600">
+                    <span className="flex items-center">
+                      <span className="font-bold text-green-600">{entry.totalVotes}</span>
+                      <span className="ml-1">votes</span>
+                    </span>
+                    <span>{entry.sentenceCount} sentences</span>
+                    <span>{formatDate(entry.completedAt)}</span>
+                  </div>
+                  <button
+                    onClick={() => toggleStoryExpansion(entry.storyId)}
+                    className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1"
+                  >
+                    {expandedStory === entry.storyId ? 'Hide' : 'View'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop table layout for larger screens */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
@@ -170,7 +274,7 @@ export const Leaderboard = () => {
                   <td className="px-4 py-4 whitespace-nowrap">
                     <button
                       onClick={() => toggleStoryExpansion(entry.storyId)}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium"
                     >
                       {expandedStory === entry.storyId ? 'Hide' : 'View'}
                     </button>

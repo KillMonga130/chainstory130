@@ -1,10 +1,13 @@
 import { redis } from '@devvit/web/server';
 import { Story, Round, Submission, LeaderboardEntry, UserContribution } from '../../shared/types/api';
+import { RedisErrorHandler } from '../utils/redis-error-handler';
+import { RedisError, ErrorLogger } from '../utils/error-handler';
 
 // Redis key patterns
 const KEYS = {
   CURRENT_STORY: 'stories:current',
   ARCHIVED_STORY: (storyId: string) => `stories:archive:${storyId}`,
+  ARCHIVED_STORY_IDS: 'stories:archive:ids', // Set of archived story IDs
   CURRENT_ROUND: 'rounds:current',
   ROUND_HISTORY: (storyId: string, roundNumber: number) => `rounds:history:${storyId}:${roundNumber}`,
   USER_SUBMISSIONS: (userId: string) => `users:submissions:${userId}`,
@@ -20,15 +23,7 @@ export class StoryRedisHelper {
    * Get the current active story
    */
   static async getCurrentStory(): Promise<Story | null> {
-    try {
-      const storyData = await redis.get(KEYS.CURRENT_STORY);
-      if (!storyData) return null;
-      
-      return JSON.parse(storyData) as Story;
-    } catch (error) {
-      console.error('Error getting current story:', error);
-      return null;
-    }
+    return await RedisErrorHandler.safeGetJSON<Story>(KEYS.CURRENT_STORY);
   }
 
   /**
@@ -46,91 +41,100 @@ export class StoryRedisHelper {
       contributors: [],
     };
 
-    try {
-      await redis.set(KEYS.CURRENT_STORY, JSON.stringify(story));
-      return story;
-    } catch (error) {
-      console.error('Error creating new story:', error);
-      throw new Error('Failed to create new story');
-    }
+    await RedisErrorHandler.safeSetJSON(KEYS.CURRENT_STORY, story);
+    ErrorLogger.logInfo('New story created', { storyId: story.id });
+    return story;
   }
 
   /**
    * Update the current story
    */
   static async updateCurrentStory(story: Story): Promise<void> {
-    try {
-      await redis.set(KEYS.CURRENT_STORY, JSON.stringify(story));
-    } catch (error) {
-      console.error('Error updating current story:', error);
-      throw new Error('Failed to update story');
-    }
+    await RedisErrorHandler.safeSetJSON(KEYS.CURRENT_STORY, story);
+    ErrorLogger.logInfo('Story updated', { storyId: story.id, status: story.status });
   }
 
   /**
    * Archive a completed story
    */
   static async archiveStory(story: Story): Promise<void> {
-    try {
-      // Store in archive
-      await redis.set(KEYS.ARCHIVED_STORY(story.id), JSON.stringify(story));
-      
-      // Remove from current if it's the current story
-      const currentStory = await this.getCurrentStory();
-      if (currentStory && currentStory.id === story.id) {
-        await redis.del(KEYS.CURRENT_STORY);
-      }
-    } catch (error) {
-      console.error('Error archiving story:', error);
-      throw new Error('Failed to archive story');
-    }
+    await RedisErrorHandler.withErrorHandling(
+      async () => {
+        // Store in archive
+        await RedisErrorHandler.safeSetJSON(KEYS.ARCHIVED_STORY(story.id), story);
+        
+        // Add to archived story IDs set (using a simple string list approach)
+        const idList = (await RedisErrorHandler.safeGetJSON<string[]>(KEYS.ARCHIVED_STORY_IDS)) || [];
+        if (!idList.includes(story.id)) {
+          idList.push(story.id);
+          await RedisErrorHandler.safeSetJSON(KEYS.ARCHIVED_STORY_IDS, idList);
+        }
+        
+        // Remove from current if it's the current story
+        const currentStory = await this.getCurrentStory();
+        if (currentStory && currentStory.id === story.id) {
+          await RedisErrorHandler.safeDelete(KEYS.CURRENT_STORY);
+        }
+        
+        ErrorLogger.logInfo('Story archived', { 
+          storyId: story.id, 
+          sentences: story.sentences.length,
+          totalVotes: story.totalVotes 
+        });
+      },
+      'ARCHIVE_STORY'
+    );
   }
 
   /**
    * Get an archived story by ID
    */
   static async getArchivedStory(storyId: string): Promise<Story | null> {
-    try {
-      const storyData = await redis.get(KEYS.ARCHIVED_STORY(storyId));
-      if (!storyData) return null;
-      
-      return JSON.parse(storyData) as Story;
-    } catch (error) {
-      console.error('Error getting archived story:', error);
-      return null;
-    }
+    return await RedisErrorHandler.safeGetJSON<Story>(KEYS.ARCHIVED_STORY(storyId));
   }
 
   /**
    * Add a sentence to the current story
    */
   static async addSentenceToStory(sentence: string, userId: string, upvotes: number): Promise<Story | null> {
-    try {
-      const story = await this.getCurrentStory();
-      if (!story) return null;
+    return await RedisErrorHandler.withErrorHandling(
+      async () => {
+        const story = await this.getCurrentStory();
+        if (!story) {
+          throw new RedisError('No current story found', 'ADD_SENTENCE');
+        }
 
-      // Add sentence
-      story.sentences.push(sentence);
-      story.totalVotes += upvotes;
-      story.roundNumber += 1;
+        // Add sentence
+        story.sentences.push(sentence);
+        story.totalVotes += upvotes;
+        story.roundNumber += 1;
 
-      // Add contributor if not already present
-      if (!story.contributors.includes(userId)) {
-        story.contributors.push(userId);
-      }
+        // Add contributor if not already present
+        if (!story.contributors.includes(userId)) {
+          story.contributors.push(userId);
+        }
 
-      // Check if story is complete
-      if (story.sentences.length >= 100) {
-        story.status = 'completed';
-        story.completedAt = Date.now();
-      }
+        // Check if story is complete
+        if (story.sentences.length >= 100) {
+          story.status = 'completed';
+          story.completedAt = Date.now();
+        }
 
-      await this.updateCurrentStory(story);
-      return story;
-    } catch (error) {
-      console.error('Error adding sentence to story:', error);
-      return null;
-    }
+        await this.updateCurrentStory(story);
+        
+        ErrorLogger.logInfo('Sentence added to story', {
+          storyId: story.id,
+          sentenceCount: story.sentences.length,
+          userId,
+          upvotes,
+          completed: story.status === 'completed'
+        });
+        
+        return story;
+      },
+      'ADD_SENTENCE_TO_STORY',
+      null
+    );
   }
 }
 
@@ -305,22 +309,236 @@ export class UserRedisHelper {
       throw new Error('Failed to track user submission');
     }
   }
+
+  /**
+   * Get stories that a user has contributed to
+   */
+  static async getUserStories(
+    userId: string, 
+    page: number, 
+    limit: number
+  ): Promise<{ stories: Story[]; totalPages: number }> {
+    try {
+      const contributions = await this.getUserContributions(userId);
+      
+      if (!contributions || contributions.submissions.length === 0) {
+        return { stories: [], totalPages: 0 };
+      }
+
+      // Get unique story IDs that the user contributed to
+      const uniqueStoryIds = [...new Set(contributions.submissions.map(sub => sub.storyId))];
+      
+      // Fetch the actual stories (both current and archived)
+      const stories: Story[] = [];
+      
+      for (const storyId of uniqueStoryIds) {
+        // Try to get from current story first
+        const currentStory = await StoryRedisHelper.getCurrentStory();
+        if (currentStory && currentStory.id === storyId) {
+          stories.push(currentStory);
+          continue;
+        }
+
+        // Try to get from archive
+        const archivedStory = await StoryRedisHelper.getArchivedStory(storyId);
+        if (archivedStory) {
+          stories.push(archivedStory);
+        }
+      }
+
+      // Sort stories by completion date DESC (most recent first)
+      const sortedStories = stories.sort((a, b) => {
+        const aCompleted = a.completedAt || a.created;
+        const bCompleted = b.completedAt || b.created;
+        return bCompleted - aCompleted;
+      });
+
+      // Paginate results
+      const totalStories = sortedStories.length;
+      const totalPages = Math.ceil(totalStories / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      
+      const pageStories = sortedStories.slice(startIndex, endIndex);
+
+      return {
+        stories: pageStories,
+        totalPages,
+      };
+    } catch (error) {
+      console.error('Error getting user stories:', error);
+      return { stories: [], totalPages: 0 };
+    }
+  }
+
+  /**
+   * Get user contribution statistics
+   */
+  static async getUserStats(userId: string): Promise<{
+    totalSubmissions: number;
+    totalWins: number;
+    totalUpvotes: number;
+    winRate: number;
+    averageUpvotes: number;
+    storiesContributedTo: number;
+  } | null> {
+    try {
+      const contributions = await this.getUserContributions(userId);
+      
+      if (!contributions) {
+        return null;
+      }
+
+      const uniqueStories = new Set(contributions.submissions.map(sub => sub.storyId)).size;
+      const winRate = contributions.totalSubmissions > 0 
+        ? (contributions.totalWins / contributions.totalSubmissions) * 100 
+        : 0;
+      const averageUpvotes = contributions.totalSubmissions > 0 
+        ? contributions.totalUpvotes / contributions.totalSubmissions 
+        : 0;
+
+      return {
+        totalSubmissions: contributions.totalSubmissions,
+        totalWins: contributions.totalWins,
+        totalUpvotes: contributions.totalUpvotes,
+        winRate: Math.round(winRate * 100) / 100, // Round to 2 decimal places
+        averageUpvotes: Math.round(averageUpvotes * 100) / 100, // Round to 2 decimal places
+        storiesContributedTo: uniqueStories,
+      };
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Track a user submission (even if they don't win)
+   */
+  static async trackUserSubmission(
+    userId: string, 
+    storyId: string, 
+    roundNumber: number, 
+    sentence: string
+  ): Promise<void> {
+    try {
+      // This tracks all submissions, not just winners
+      // We'll update with actual upvotes and winner status during round resolution
+      let contributions = await this.getUserContributions(userId);
+      
+      if (!contributions) {
+        contributions = {
+          userId,
+          submissions: [],
+          totalSubmissions: 0,
+          totalWins: 0,
+          totalUpvotes: 0,
+        };
+      }
+
+      // Check if this submission already exists (avoid duplicates)
+      const existingSubmission = contributions.submissions.find(
+        sub => sub.storyId === storyId && sub.roundNumber === roundNumber && sub.sentence === sentence
+      );
+
+      if (!existingSubmission) {
+        contributions.submissions.push({
+          storyId,
+          roundNumber,
+          sentence,
+          upvotes: 0, // Will be updated during round resolution
+          wasWinner: false, // Will be updated during round resolution
+        });
+
+        contributions.totalSubmissions += 1;
+        await redis.set(KEYS.USER_SUBMISSIONS(userId), JSON.stringify(contributions));
+      }
+    } catch (error) {
+      console.error('Error tracking user submission:', error);
+      // Don't throw error - this is not critical for core functionality
+    }
+  }
 }
 
 // Leaderboard operations
 export class LeaderboardRedisHelper {
 
   /**
-   * Get top leaderboard entries
+   * Get top leaderboard entries with caching
    */
   static async getTopLeaderboard(): Promise<LeaderboardEntry[]> {
     try {
-      const leaderboardData = await redis.get(KEYS.LEADERBOARD_TOP);
-      if (!leaderboardData) return [];
+      const cacheKey = KEYS.LEADERBOARD_TOP;
+      const cachedData = await redis.get(cacheKey);
       
-      return JSON.parse(leaderboardData) as LeaderboardEntry[];
+      if (cachedData) {
+        const parsed = JSON.parse(cachedData) as LeaderboardEntry[];
+        // Return cached data (Redis will handle expiration automatically)
+        return parsed;
+      }
+
+      // Cache miss or expired - rebuild leaderboard from archived stories
+      const leaderboard = await this.rebuildLeaderboard();
+      
+      // Cache for 10 minutes (600 seconds) using set with expiration
+      await redis.set(cacheKey, JSON.stringify(leaderboard), { expiration: new Date(Date.now() + 600000) });
+      
+      return leaderboard;
     } catch (error) {
       console.error('Error getting leaderboard:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Rebuild leaderboard from all archived stories
+   */
+  private static async rebuildLeaderboard(): Promise<LeaderboardEntry[]> {
+    try {
+      // Get all archived story IDs from the list
+      const archivedIdsData = await redis.get(KEYS.ARCHIVED_STORY_IDS);
+      const archivedIds = archivedIdsData ? JSON.parse(archivedIdsData) : [];
+      
+      if (archivedIds.length === 0) {
+        return [];
+      }
+
+      // Fetch all archived stories
+      const stories: Story[] = [];
+      for (const storyId of archivedIds) {
+        const storyData = await redis.get(KEYS.ARCHIVED_STORY(storyId));
+        if (storyData) {
+          const story = JSON.parse(storyData) as Story;
+          if (story.status === 'completed' && story.sentences.length === 100) {
+            stories.push(story);
+          }
+        }
+      }
+      // and rely on the updateLeaderboard method to populate entries.
+
+      // Convert to leaderboard entries and sort
+      const entries: LeaderboardEntry[] = stories
+        .map((story) => ({
+          rank: 0, // Will be set after sorting
+          storyId: story.id,
+          sentenceCount: story.sentences.length,
+          totalVotes: story.totalVotes,
+          creator: story.contributors[0] || 'anonymous',
+          completedAt: story.completedAt!,
+          preview: story.sentences.slice(0, 2).join(' ').substring(0, 100),
+        }))
+        .sort((a, b) => {
+          // Sort by total votes DESC, then by creation date ASC (older stories rank higher on ties)
+          if (a.totalVotes !== b.totalVotes) {
+            return b.totalVotes - a.totalVotes;
+          }
+          return a.completedAt - b.completedAt;
+        })
+        .slice(0, 10) // Keep only top 10
+        .map((entry, index) => ({ ...entry, rank: index + 1 }));
+
+      return entries;
+    } catch (error) {
+      console.error('Error rebuilding leaderboard:', error);
       return [];
     }
   }
@@ -334,34 +552,135 @@ export class LeaderboardRedisHelper {
         return; // Only completed stories go on leaderboard
       }
 
-      const currentLeaderboard = await this.getTopLeaderboard();
+      // Invalidate cache to force rebuild on next request
+      await redis.del(KEYS.LEADERBOARD_TOP);
       
-      const newEntry: LeaderboardEntry = {
-        rank: 0, // Will be calculated after sorting
-        storyId: story.id,
-        sentenceCount: story.sentences.length,
-        totalVotes: story.totalVotes,
-        creator: story.contributors[0] || 'anonymous',
-        completedAt: story.completedAt!,
-        preview: story.sentences.slice(0, 2).join(' ').substring(0, 100),
-      };
-
-      // Add new entry and sort
-      const updatedLeaderboard = [...currentLeaderboard, newEntry]
-        .sort((a, b) => {
-          // Sort by total votes DESC, then by completion date ASC (older first)
-          if (a.totalVotes !== b.totalVotes) {
-            return b.totalVotes - a.totalVotes;
-          }
-          return a.completedAt - b.completedAt;
-        })
-        .slice(0, 10) // Keep only top 10
-        .map((entry, index) => ({ ...entry, rank: index + 1 }));
-
-      await redis.set(KEYS.LEADERBOARD_TOP, JSON.stringify(updatedLeaderboard));
+      console.log(`Leaderboard cache invalidated for new completed story: ${story.id}`);
     } catch (error) {
       console.error('Error updating leaderboard:', error);
       throw new Error('Failed to update leaderboard');
+    }
+  }
+}
+
+// Archive operations
+export class ArchiveRedisHelper {
+
+  /**
+   * Get paginated archived stories with sorting
+   */
+  static async getArchivedStories(
+    page: number, 
+    limit: number, 
+    sort: 'date' | 'votes'
+  ): Promise<{ stories: Story[]; totalPages: number }> {
+    try {
+      // Get all archived story IDs from the list
+      const archivedIdsData = await redis.get(KEYS.ARCHIVED_STORY_IDS);
+      const archivedIds = archivedIdsData ? JSON.parse(archivedIdsData) : [];
+      
+      if (archivedIds.length === 0) {
+        return { stories: [], totalPages: 0 };
+      }
+
+      // Fetch all archived stories
+      const stories: Story[] = [];
+      for (const storyId of archivedIds) {
+        const storyData = await redis.get(KEYS.ARCHIVED_STORY(storyId));
+        if (storyData) {
+          const story = JSON.parse(storyData) as Story;
+          if (story.status === 'completed' || story.status === 'archived') {
+            stories.push(story);
+          }
+        }
+      }
+
+      // Sort stories based on requested sort order
+      const sortedStories = stories.sort((a, b) => {
+        if (sort === 'votes') {
+          // Sort by total votes DESC, then by completion date DESC (newer first)
+          if (a.totalVotes !== b.totalVotes) {
+            return b.totalVotes - a.totalVotes;
+          }
+          return (b.completedAt || 0) - (a.completedAt || 0);
+        } else {
+          // Sort by completion date DESC (newer first), then by total votes DESC
+          const aCompleted = a.completedAt || 0;
+          const bCompleted = b.completedAt || 0;
+          if (aCompleted !== bCompleted) {
+            return bCompleted - aCompleted;
+          }
+          return b.totalVotes - a.totalVotes;
+        }
+      });
+
+      // Calculate pagination
+      const totalStories = sortedStories.length;
+      const totalPages = Math.ceil(totalStories / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      
+      // Get page slice
+      const pageStories = sortedStories.slice(startIndex, endIndex);
+
+      return {
+        stories: pageStories,
+        totalPages,
+      };
+    } catch (error) {
+      console.error('Error getting archived stories:', error);
+      return { stories: [], totalPages: 0 };
+    }
+  }
+
+  /**
+   * Get a specific archived story by ID
+   */
+  static async getArchivedStoryById(storyId: string): Promise<Story | null> {
+    try {
+      const storyData = await redis.get(KEYS.ARCHIVED_STORY(storyId));
+      if (!storyData) return null;
+      
+      return JSON.parse(storyData) as Story;
+    } catch (error) {
+      console.error('Error getting archived story by ID:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Search archived stories by text (future enhancement)
+   */
+  static async searchArchivedStories(
+    query: string, 
+    page: number, 
+    limit: number
+  ): Promise<{ stories: Story[]; totalPages: number }> {
+    try {
+      // Get all archived stories first
+      const allStories = await this.getArchivedStories(1, 1000, 'date');
+      
+      // Simple text search in story sentences
+      const matchingStories = allStories.stories.filter(story => {
+        const fullText = story.sentences.join(' ').toLowerCase();
+        return fullText.includes(query.toLowerCase());
+      });
+
+      // Paginate results
+      const totalStories = matchingStories.length;
+      const totalPages = Math.ceil(totalStories / limit);
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+      
+      const pageStories = matchingStories.slice(startIndex, endIndex);
+
+      return {
+        stories: pageStories,
+        totalPages,
+      };
+    } catch (error) {
+      console.error('Error searching archived stories:', error);
+      return { stories: [], totalPages: 0 };
     }
   }
 }

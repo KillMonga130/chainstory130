@@ -33,10 +33,10 @@ export const StoryDisplay = ({ story }: StoryDisplayProps) => {
   }, []);
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6">
+    <div className="mobile-card bg-white rounded-lg shadow-md p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-2">
-        <h2 className="text-xl font-semibold">Current Story</h2>
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-sm text-gray-600">
+        <h2 className="text-lg sm:text-xl font-semibold">Current Story</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 text-xs sm:text-sm text-gray-600">
           <span>Round {story.roundNumber} • {story.sentences.length}/100 sentences</span>
           {story.status === 'active' && (
             <span className="text-blue-600 font-medium">
@@ -47,7 +47,7 @@ export const StoryDisplay = ({ story }: StoryDisplayProps) => {
       </div>
 
       {story.status === 'completed' && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg mb-4">
+        <div className="bg-green-100 border border-green-400 text-green-700 px-3 sm:px-4 py-3 rounded-lg mb-4">
           <div className="flex items-center">
             <span className="text-lg mr-2">🎉</span>
             <span className="font-semibold">Story Complete!</span>
@@ -58,39 +58,39 @@ export const StoryDisplay = ({ story }: StoryDisplayProps) => {
         </div>
       )}
 
-      <div className="bg-gray-50 rounded-lg p-4 mb-4 max-h-64 sm:max-h-80 overflow-y-auto">
+      <div className="bg-gray-50 rounded-lg p-3 sm:p-4 mb-4 max-h-48 sm:max-h-64 md:max-h-80 overflow-y-auto mobile-scroll">
         {story.sentences.length > 0 ? (
           <div className="space-y-2">
             {story.sentences.map((sentence, index) => (
-              <p key={index} className="text-gray-800 leading-relaxed">
-                <span className="font-medium text-gray-600 mr-2">[{index + 1}]</span>
+              <p key={index} className="text-gray-800 leading-relaxed text-sm sm:text-base">
+                <span className="font-medium text-gray-600 mr-2 text-xs sm:text-sm">[{index + 1}]</span>
                 {sentence}
               </p>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 italic text-center py-8">
+          <p className="text-gray-500 italic text-center py-6 sm:py-8 text-sm sm:text-base">
             No sentences yet. Be the first to start the story!
           </p>
         )}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
-        <div className="text-center p-3 bg-blue-50 rounded-lg">
-          <div className="font-semibold text-blue-800">{story.sentences.length}</div>
-          <div className="text-blue-600">Sentences</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
+        <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg">
+          <div className="font-semibold text-blue-800 text-sm sm:text-base">{story.sentences.length}</div>
+          <div className="text-blue-600 text-xs sm:text-sm">Sentences</div>
         </div>
-        <div className="text-center p-3 bg-green-50 rounded-lg">
-          <div className="font-semibold text-green-800">{story.totalVotes}</div>
-          <div className="text-green-600">Total Votes</div>
+        <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg">
+          <div className="font-semibold text-green-800 text-sm sm:text-base">{story.totalVotes}</div>
+          <div className="text-green-600 text-xs sm:text-sm">Total Votes</div>
         </div>
-        <div className="text-center p-3 bg-purple-50 rounded-lg">
-          <div className="font-semibold text-purple-800">{story.contributors.length}</div>
-          <div className="text-purple-600">Contributors</div>
+        <div className="text-center p-2 sm:p-3 bg-purple-50 rounded-lg">
+          <div className="font-semibold text-purple-800 text-sm sm:text-base">{story.contributors.length}</div>
+          <div className="text-purple-600 text-xs sm:text-sm">Contributors</div>
         </div>
-        <div className="text-center p-3 bg-orange-50 rounded-lg">
-          <div className="font-semibold text-orange-800 capitalize">{story.status}</div>
-          <div className="text-orange-600">Status</div>
+        <div className="text-center p-2 sm:p-3 bg-orange-50 rounded-lg">
+          <div className="font-semibold text-orange-800 capitalize text-sm sm:text-base">{story.status}</div>
+          <div className="text-orange-600 text-xs sm:text-sm">Status</div>
         </div>
       </div>
     </div>

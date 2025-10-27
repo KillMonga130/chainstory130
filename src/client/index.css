@@ -1,1 +1,54 @@
 @import 'tailwindcss';
+
+/* Mobile-first responsive design improvements */
+@layer base {
+  html {
+    /* Improve text rendering on mobile */
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  body {
+    /* Prevent horizontal scroll on mobile */
+    overflow-x: hidden;
+  }
+}
+
+@layer components {
+  /* Touch-friendly button styles */
+  .touch-button {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
+  }
+  
+  /* Mobile-optimized form inputs */
+  .mobile-input {
+    @apply text-base; /* Prevents zoom on iOS */
+  }
+  
+  /* Improved mobile scrolling */
+  .mobile-scroll {
+    @apply -webkit-overflow-scrolling-touch;
+  }
+  
+  /* Mobile-friendly card spacing */
+  .mobile-card {
+    @apply mx-2 sm:mx-0;
+  }
+}
+
+@layer utilities {
+  /* Safe area padding for mobile devices with notches */
+  .safe-area-padding {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Prevent text selection on touch interfaces */
+  .no-select {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+}

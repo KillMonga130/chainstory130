@@ -1,25 +1,39 @@
 import express from 'express';
-import { 
-  CurrentStoryResponse, 
-  SubmitSentenceRequest, 
+import {
+  CurrentStoryResponse,
+  SubmitSentenceRequest,
   SubmitSentenceResponse,
   LeaderboardResponse,
   ArchiveResponse,
+  UserContribution,
+  Story,
   validateSentenceLength,
   RealTimeMessage,
   StoryUpdateMessage,
   NewRoundMessage,
-  StoryCompleteMessage
+  StoryCompleteMessage,
 } from '../shared/types/api';
 import { reddit, createServer, context, getServerPort, realtime } from '@devvit/web/server';
 import { createPost } from './core/post';
-import { 
-  StoryRedisHelper, 
-  RoundRedisHelper, 
+import {
+  StoryRedisHelper,
+  RoundRedisHelper,
   LeaderboardRedisHelper,
+  ArchiveRedisHelper,
   UserRedisHelper,
-  RedisUtilityHelper 
+  RedisUtilityHelper,
 } from './core/redis-helpers';
+import {
+  errorHandler,
+  asyncHandler,
+  validateRequest,
+  RateLimiter,
+  ErrorLogger,
+  ValidationError,
+  AuthenticationError,
+} from './utils/error-handler';
+import { RedditErrorHandler } from './utils/reddit-error-handler';
+import { RedisErrorHandler } from './utils/redis-error-handler';
 
 // Real-time messaging helper
 class RealTimeHelper {
@@ -30,26 +44,31 @@ class RealTimeHelper {
       // Ensure message is JSON-serializable by stringifying and parsing
       const jsonMessage = JSON.parse(JSON.stringify(message));
       await realtime.send(this.CHANNEL_NAME, jsonMessage);
-      console.log(`Broadcast ${message.type} message to ${this.CHANNEL_NAME} channel`);
+      ErrorLogger.logInfo(`Broadcast ${message.type} message`, {
+        channel: this.CHANNEL_NAME,
+        messageType: message.type,
+      });
     } catch (error) {
-      console.error(`Failed to broadcast ${message.type} message:`, error);
       // Log the error but don't throw - real-time is not critical for core functionality
-      // The game should continue to work even if real-time updates fail
-      if (error instanceof Error) {
-        console.error(`Real-time error details: ${error.message}`);
-      }
+      ErrorLogger.logWarning(`Failed to broadcast ${message.type} message`, {
+        channel: this.CHANNEL_NAME,
+        messageType: message.type,
+        error: (error as Error).message,
+      });
     }
   }
 
   static async broadcastStoryUpdate(
-    story: any, 
-    roundTimeRemaining: number, 
-    newSentence?: {
-      sentence: string;
-      roundNumber: number;
-      userId: string;
-      upvotes: number;
-    } | undefined
+    story: any,
+    roundTimeRemaining: number,
+    newSentence?:
+      | {
+          sentence: string;
+          roundNumber: number;
+          userId: string;
+          upvotes: number;
+        }
+      | undefined
   ): Promise<void> {
     const message: StoryUpdateMessage = {
       type: 'story-update',
@@ -61,8 +80,8 @@ class RealTimeHelper {
   }
 
   static async broadcastNewRound(
-    storyId: string, 
-    roundNumber: number, 
+    storyId: string,
+    roundNumber: number,
     roundTimeRemaining: number
   ): Promise<void> {
     const message: NewRoundMessage = {
@@ -74,10 +93,7 @@ class RealTimeHelper {
     await this.broadcastMessage(message);
   }
 
-  static async broadcastStoryComplete(
-    completedStory: any, 
-    newStory: any
-  ): Promise<void> {
+  static async broadcastStoryComplete(completedStory: any, newStory: any): Promise<void> {
     const message: StoryCompleteMessage = {
       type: 'story-complete',
       completedStory,
@@ -89,180 +105,222 @@ class RealTimeHelper {
 
 const app = express();
 
-// Middleware for JSON body parsing
-app.use(express.json());
-// Middleware for URL-encoded body parsing
-app.use(express.urlencoded({ extended: true }));
-// Middleware for plain text body parsing
-app.use(express.text());
+// Performance middleware
+app.use((_req, res, next) => {
+  // Add security headers
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+  });
+
+  // Add performance headers
+  res.set('Server-Timing', `total;dur=${Date.now()}`);
+
+  next();
+});
+
+// Middleware for JSON body parsing with size limits and error handling
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (_req, _res, buf) => {
+      try {
+        JSON.parse(buf.toString());
+      } catch (error) {
+        throw new ValidationError('Invalid JSON format');
+      }
+    },
+  })
+);
+
+// Middleware for URL-encoded body parsing with size limits
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Middleware for plain text body parsing with size limits
+app.use(express.text({ limit: '1mb' }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  const startTime = Date.now();
+
+  res.on('finish', () => {
+    const duration = Date.now() - startTime;
+    const logLevel = res.statusCode >= 400 ? 'warning' : 'info';
+
+    if (logLevel === 'warning') {
+      ErrorLogger.logWarning(`HTTP ${res.statusCode} - ${req.method} ${req.url}`, {
+        statusCode: res.statusCode,
+        method: req.method,
+        url: req.url,
+        duration,
+        userAgent: req.headers['user-agent'],
+      });
+    } else {
+      ErrorLogger.logInfo(`HTTP ${res.statusCode} - ${req.method} ${req.url}`, {
+        statusCode: res.statusCode,
+        duration,
+      });
+    }
+  });
+
+  next();
+});
 
 const router = express.Router();
 
 router.get<{}, CurrentStoryResponse | { status: string; message: string }>(
   '/api/story/current',
-  async (_req, res): Promise<void> => {
+  RateLimiter.middleware(30, 60000), // 30 requests per minute
+  asyncHandler(async (_req, res): Promise<void> => {
     const { postId } = context;
 
     if (!postId) {
-      console.error('API Current Story Error: postId not found in devvit context');
-      res.status(400).json({
-        status: 'error',
-        message: 'postId is required but missing from context',
-      });
-      return;
+      throw new ValidationError('postId is required but missing from context');
     }
 
-    try {
-      let story = await StoryRedisHelper.getCurrentStory();
-      
-      // Create new story if none exists
-      if (!story) {
-        story = await StoryRedisHelper.createNewStory();
-        // Also create the first round
-        await RoundRedisHelper.createNewRound(story.id, story.roundNumber);
-      }
+    // Set performance-optimized cache headers
+    res.set({
+      'Cache-Control': 'public, max-age=5, stale-while-revalidate=10',
+      'Vary': 'Accept-Encoding',
+    });
 
-      // Calculate time remaining in current round (assuming hourly rounds)
-      const currentRound = await RoundRedisHelper.getCurrentRound();
-      const roundTimeRemaining = currentRound 
-        ? Math.max(0, Math.floor((currentRound.endTime - Date.now()) / 1000))
-        : 3600; // Default to 1 hour if no round found
+    let story = await StoryRedisHelper.getCurrentStory();
 
-      res.json({
-        type: 'current-story',
-        story,
-        roundTimeRemaining,
+    // Create new story if none exists
+    if (!story) {
+      story = await StoryRedisHelper.createNewStory();
+      // Also create the first round
+      await RoundRedisHelper.createNewRound(story.id, story.roundNumber);
+      ErrorLogger.logInfo('Created new story and round', {
+        storyId: story.id,
+        roundNumber: story.roundNumber,
       });
-    } catch (error) {
-      console.error(`API Current Story Error for post ${postId}:`, error);
-      let errorMessage = 'Unknown error getting current story';
-      if (error instanceof Error) {
-        errorMessage = `Failed to get current story: ${error.message}`;
-      }
-      res.status(500).json({ status: 'error', message: errorMessage });
     }
-  }
+
+    // Calculate time remaining in current round (assuming hourly rounds)
+    const currentRound = await RoundRedisHelper.getCurrentRound();
+    const roundTimeRemaining = currentRound
+      ? Math.max(0, Math.floor((currentRound.endTime - Date.now()) / 1000))
+      : 3600; // Default to 1 hour if no round found
+
+    res.json({
+      type: 'current-story',
+      story,
+      roundTimeRemaining,
+    });
+  })
 );
 
-router.post<{}, SubmitSentenceResponse | { status: string; message: string }, SubmitSentenceRequest>(
+router.post<
+  {},
+  SubmitSentenceResponse | { status: string; message: string },
+  SubmitSentenceRequest
+>(
   '/api/submit-sentence',
-  async (req, res): Promise<void> => {
+  RateLimiter.middleware(5, 60000), // 5 submissions per minute
+  validateRequest((req) => {
+    const { storyId, roundNumber, sentence } = req.body;
+
+    if (!storyId || typeof storyId !== 'string') {
+      throw new Error('storyId is required and must be a string');
+    }
+
+    if (!roundNumber || typeof roundNumber !== 'number') {
+      throw new Error('roundNumber is required and must be a number');
+    }
+
+    if (!sentence || typeof sentence !== 'string') {
+      throw new Error('sentence is required and must be a string');
+    }
+  }),
+  asyncHandler(async (req, res): Promise<void> => {
     const { postId } = context;
     if (!postId) {
-      res.status(400).json({
-        status: 'error',
-        message: 'postId is required',
-      });
-      return;
+      throw new ValidationError('postId is required');
     }
 
-    try {
-      const { storyId, roundNumber, sentence } = req.body;
-      
-      if (!storyId || !roundNumber || !sentence) {
-        res.status(400).json({
-          status: 'error',
-          message: 'storyId, roundNumber, and sentence are required',
-        });
-        return;
-      }
+    const { storyId, roundNumber, sentence } = req.body;
 
-      // Validate sentence length
-      const validation = validateSentenceLength(sentence);
-      if (!validation.valid) {
-        res.status(400).json({
-          status: 'error',
-          message: validation.error!,
-        });
-        return;
-      }
-
-      // Get current user
-      const username = await reddit.getCurrentUsername();
-      if (!username) {
-        res.status(401).json({
-          status: 'error',
-          message: 'User authentication required',
-        });
-        return;
-      }
-
-      // Verify story and round are current
-      const currentStory = await StoryRedisHelper.getCurrentStory();
-      const currentRound = await RoundRedisHelper.getCurrentRound();
-      
-      if (!currentStory || currentStory.id !== storyId) {
-        res.status(400).json({
-          status: 'error',
-          message: 'Invalid story ID or story no longer active',
-        });
-        return;
-      }
-
-      if (!currentRound || currentRound.roundNumber !== roundNumber) {
-        res.status(400).json({
-          status: 'error',
-          message: 'Invalid round number or round has ended',
-        });
-        return;
-      }
-
-      if (currentStory.status !== 'active') {
-        res.status(400).json({
-          status: 'error',
-          message: 'Story is no longer accepting submissions',
-        });
-        return;
-      }
-
-      // Post as Reddit comment with round format
-      const commentBody = `[Round ${roundNumber}] ${sentence.trim()}`;
-      const comment = await reddit.submitComment({
-        id: postId,
-        text: commentBody,
-      });
-
-      // Store submission in Redis
-      const submission = {
-        commentId: comment.id,
-        sentence: sentence.trim(),
-        upvotes: 1, // Comments start with 1 upvote
-        userId: username,
-        timestamp: Date.now(),
-      };
-
-      await RoundRedisHelper.addSubmissionToRound(submission);
-
-      // Note: We don't broadcast individual submissions as they need to be voted on first
-      // Real-time updates will be sent when the round resolves and a winner is selected
-
-      res.json({
-        type: 'submit-sentence',
-        success: true,
-        message: 'Submitted! Your sentence is being voted on',
-        commentId: comment.id,
-      });
-    } catch (error) {
-      console.error(`Error submitting sentence:`, error);
-      let errorMessage = 'Failed to submit sentence';
-      if (error instanceof Error) {
-        errorMessage = `Submission failed: ${error.message}`;
-      }
-      res.status(500).json({ 
-        type: 'submit-sentence',
-        success: false,
-        message: errorMessage 
-      });
+    // Validate sentence length
+    const validation = validateSentenceLength(sentence);
+    if (!validation.valid) {
+      throw new ValidationError(validation.error!);
     }
-  }
+
+    // Get current user with error handling
+    const username = await RedditErrorHandler.safeGetCurrentUsername();
+    if (!username) {
+      throw new AuthenticationError('User authentication required');
+    }
+
+    // Verify story and round are current
+    const currentStory = await StoryRedisHelper.getCurrentStory();
+    const currentRound = await RoundRedisHelper.getCurrentRound();
+
+    if (!currentStory || currentStory.id !== storyId) {
+      throw new ValidationError('Invalid story ID or story no longer active');
+    }
+
+    if (!currentRound || currentRound.roundNumber !== roundNumber) {
+      throw new ValidationError('Invalid round number or round has ended');
+    }
+
+    if (currentStory.status !== 'active') {
+      throw new ValidationError('Story is no longer accepting submissions');
+    }
+
+    // Post as Reddit comment with round format and error handling
+    const commentBody = `[Round ${roundNumber}] ${sentence.trim()}`;
+    const commentResult = await RedditErrorHandler.safeSubmitComment(postId, commentBody);
+
+    // Store submission in Redis
+    const submission = {
+      commentId: commentResult.id,
+      sentence: sentence.trim(),
+      upvotes: 1, // Comments start with 1 upvote
+      userId: username,
+      timestamp: Date.now(),
+    };
+
+    await RoundRedisHelper.addSubmissionToRound(submission);
+
+    // Track user submission for contribution history
+    await UserRedisHelper.trackUserSubmission(username, storyId, roundNumber, sentence.trim());
+
+    ErrorLogger.logInfo('Sentence submitted successfully', {
+      storyId,
+      roundNumber,
+      userId: username,
+      commentId: commentResult.id,
+      fallbackUsed: commentResult.fallbackUsed,
+    });
+
+    res.json({
+      type: 'submit-sentence',
+      success: true,
+      message: commentResult.fallbackUsed
+        ? 'Submitted with fallback text! Your sentence is being voted on'
+        : 'Submitted! Your sentence is being voted on',
+      commentId: commentResult.id,
+    });
+  })
 );
 
 router.get<{}, LeaderboardResponse | { status: string; message: string }>(
   '/api/leaderboard/top-10',
   async (_req, res): Promise<void> => {
     try {
+      // Get leaderboard with caching (10-minute TTL handled in Redis helper)
       const stories = await LeaderboardRedisHelper.getTopLeaderboard();
-      
+
+      // Set optimized cache headers for client-side caching (10 minutes)
+      res.set({
+        'Cache-Control': 'public, max-age=600, stale-while-revalidate=300',
+        'Vary': 'Accept-Encoding',
+        'ETag': `leaderboard-${stories.length}-${Date.now()}`,
+      });
+
       res.json({
         type: 'leaderboard',
         stories,
@@ -281,14 +339,25 @@ router.get<{}, ArchiveResponse | { status: string; message: string }>(
   '/api/archive/stories',
   async (req, res): Promise<void> => {
     try {
-      // For now, return empty archive - this will be implemented in future tasks
-      // when we have archived stories to display
-      const page = parseInt(req.query.page as string) || 1;
-      
+      // Parse query parameters
+      const page = Math.max(1, parseInt(req.query.page as string) || 1);
+      const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string) || 10));
+      const sort = (req.query.sort as string) === 'votes' ? 'votes' : 'date';
+
+      // Get paginated archived stories
+      const result = await ArchiveRedisHelper.getArchivedStories(page, limit, sort);
+
+      // Set optimized cache headers for client-side caching (5 minutes for archive)
+      res.set({
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600',
+        'Vary': 'Accept-Encoding',
+        'ETag': `archive-${page}-${sort}-${result.stories.length}`,
+      });
+
       res.json({
         type: 'archive',
-        stories: [],
-        totalPages: 0,
+        stories: result.stories,
+        totalPages: result.totalPages,
         currentPage: page,
       });
     } catch (error) {
@@ -301,17 +370,170 @@ router.get<{}, ArchiveResponse | { status: string; message: string }>(
   }
 );
 
-// Real-time channel connection endpoint
-router.get('/api/realtime/connect', async (_req, res): Promise<void> => {
+router.get<{}, UserContribution | { status: string; message: string }>(
+  '/api/user/contributions',
+  async (_req, res): Promise<void> => {
+    try {
+      // Get current user
+      const username = await reddit.getCurrentUsername();
+      if (!username) {
+        res.status(401).json({
+          status: 'error',
+          message: 'User authentication required',
+        });
+        return;
+      }
+
+      // Get user contributions
+      const contributions = await UserRedisHelper.getUserContributions(username);
+
+      if (!contributions) {
+        // Return empty contribution record for new users
+        const emptyContributions: UserContribution = {
+          userId: username,
+          submissions: [],
+          totalSubmissions: 0,
+          totalWins: 0,
+          totalUpvotes: 0,
+        };
+
+        res.json(emptyContributions);
+        return;
+      }
+
+      // Set cache headers for client-side caching (1 minute)
+      res.set('Cache-Control', 'public, max-age=60');
+
+      res.json(contributions);
+    } catch (error) {
+      console.error('Error getting user contributions:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get user contributions',
+      });
+    }
+  }
+);
+
+router.get<
+  {},
+  | { stories: Story[]; totalPages: number; currentPage: number }
+  | { status: string; message: string }
+>('/api/user/stories', async (req, res): Promise<void> => {
   try {
+    // Get current user
+    const username = await reddit.getCurrentUsername();
+    if (!username) {
+      res.status(401).json({
+        status: 'error',
+        message: 'User authentication required',
+      });
+      return;
+    }
+
+    // Parse pagination parameters
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const limit = Math.min(20, Math.max(1, parseInt(req.query.limit as string) || 10));
+
+    // Get stories the user contributed to
+    const result = await UserRedisHelper.getUserStories(username, page, limit);
+
+    // Set cache headers for client-side caching (1 minute)
+    res.set('Cache-Control', 'public, max-age=60');
+
+    res.json({
+      stories: result.stories,
+      totalPages: result.totalPages,
+      currentPage: page,
+    });
+  } catch (error) {
+    console.error('Error getting user stories:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get user stories',
+    });
+  }
+});
+
+router.get<{}, { stats: any } | { status: string; message: string }>(
+  '/api/user/stats',
+  async (_req, res): Promise<void> => {
+    try {
+      // Get current user
+      const username = await reddit.getCurrentUsername();
+      if (!username) {
+        res.status(401).json({
+          status: 'error',
+          message: 'User authentication required',
+        });
+        return;
+      }
+
+      // Get user statistics
+      const stats = await UserRedisHelper.getUserStats(username);
+
+      if (!stats) {
+        // Return empty stats for new users
+        const emptyStats = {
+          totalSubmissions: 0,
+          totalWins: 0,
+          totalUpvotes: 0,
+          winRate: 0,
+          averageUpvotes: 0,
+          storiesContributedTo: 0,
+        };
+
+        res.json({ stats: emptyStats });
+        return;
+      }
+
+      // Set cache headers for client-side caching (1 minute)
+      res.set('Cache-Control', 'public, max-age=60');
+
+      res.json({ stats });
+    } catch (error) {
+      console.error('Error getting user stats:', error);
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to get user stats',
+      });
+    }
+  }
+);
+
+// Health check endpoint
+router.get(
+  '/api/health',
+  asyncHandler(async (_req, res): Promise<void> => {
+    const healthChecks = {
+      redis: await RedisErrorHandler.checkConnection(),
+      reddit: await RedditErrorHandler.checkApiHealth(),
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    };
+
+    const isHealthy = healthChecks.redis && healthChecks.reddit.healthy;
+    const statusCode = isHealthy ? 200 : 503;
+
+    res.status(statusCode).json({
+      status: isHealthy ? 'healthy' : 'unhealthy',
+      checks: healthChecks,
+    });
+  })
+);
+
+// Real-time channel connection endpoint
+router.get(
+  '/api/realtime/connect',
+  asyncHandler(async (_req, res): Promise<void> => {
     // Subscribe user to the story-updates channel
     const channelName = 'story-updates';
-    
+
     // Get current story to send initial state
     const currentStory = await StoryRedisHelper.getCurrentStory();
     const currentRound = await RoundRedisHelper.getCurrentRound();
-    
-    const roundTimeRemaining = currentRound 
+
+    const roundTimeRemaining = currentRound
       ? Math.max(0, Math.floor((currentRound.endTime - Date.now()) / 1000))
       : 3600;
 
@@ -324,31 +546,20 @@ router.get('/api/realtime/connect', async (_req, res): Promise<void> => {
         roundTimeRemaining,
       },
     });
-  } catch (error) {
-    console.error('Error connecting to real-time channel:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Failed to connect to real-time updates',
-    });
-  }
-});
+  })
+);
 
-router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
-  try {
+router.post(
+  '/internal/on-app-install',
+  asyncHandler(async (_req, res): Promise<void> => {
     const post = await createPost();
 
     res.json({
       status: 'success',
       message: `Post created in subreddit ${context.subredditName} with id ${post.id}`,
     });
-  } catch (error) {
-    console.error(`Error creating post: ${error}`);
-    res.status(400).json({
-      status: 'error',
-      message: 'Failed to create post',
-    });
-  }
-});
+  })
+);
 
 router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
   try {
@@ -369,7 +580,7 @@ router.post('/internal/menu/post-create', async (_req, res): Promise<void> => {
 router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void> => {
   try {
     console.log('Hourly round resolution job triggered at', new Date().toISOString());
-    
+
     const { postId } = context;
     if (!postId) {
       console.error('No postId found in context for hourly round resolution');
@@ -404,12 +615,14 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
     }
 
     // Fetch comments from the past hour
-    const oneHourAgo = Date.now() - (60 * 60 * 1000);
-    const comments = await reddit.getComments({
-      postId,
-      limit: 100,
-      sort: 'new',
-    }).all();
+    const oneHourAgo = Date.now() - 60 * 60 * 1000;
+    const comments = await reddit
+      .getComments({
+        postId,
+        limit: 100,
+        sort: 'new',
+      })
+      .all();
 
     // Filter comments that match the current round format and are from the past hour
     const roundPattern = new RegExp(`^\\[Round ${currentRound.roundNumber}\\]\\s+(.+)$`);
@@ -432,7 +645,7 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
       if (!match || !match[1]) continue;
 
       const sentence = match[1].trim();
-      
+
       // Validate sentence length
       const validation = validateSentenceLength(sentence);
       if (!validation.valid) continue;
@@ -482,16 +695,12 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
 
     // Broadcast story update with new sentence
     const newRoundTimeRemaining = 3600; // 1 hour for next round
-    await RealTimeHelper.broadcastStoryUpdate(
-      updatedStory,
-      newRoundTimeRemaining,
-      {
-        sentence: winningSubmission.sentence,
-        roundNumber: currentRound.roundNumber,
-        userId: winningSubmission.userId,
-        upvotes: winningSubmission.upvotes,
-      }
-    );
+    await RealTimeHelper.broadcastStoryUpdate(updatedStory, newRoundTimeRemaining, {
+      sentence: winningSubmission.sentence,
+      roundNumber: currentRound.roundNumber,
+      userId: winningSubmission.userId,
+      upvotes: winningSubmission.upvotes,
+    });
 
     // Complete the current round
     await RoundRedisHelper.completeRound({
@@ -515,23 +724,25 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
 
     // Check if story is completed
     if (updatedStory.status === 'completed') {
-      console.log(`Story ${updatedStory.id} completed with ${updatedStory.sentences.length} sentences`);
-      
+      console.log(
+        `Story ${updatedStory.id} completed with ${updatedStory.sentences.length} sentences`
+      );
+
       // Archive the completed story
       await StoryRedisHelper.archiveStory(updatedStory);
-      
+
       // Update leaderboard
       await LeaderboardRedisHelper.updateLeaderboard(updatedStory);
-      
+
       // Create new story for next cycle
       const newStory = await StoryRedisHelper.createNewStory();
       await RoundRedisHelper.createNewRound(newStory.id, newStory.roundNumber);
-      
+
       console.log(`New story ${newStory.id} created to replace completed story`);
-      
+
       // Broadcast story completion
       await RealTimeHelper.broadcastStoryComplete(updatedStory, newStory);
-      
+
       res.json({
         status: 'success',
         message: `Round resolved. Story completed and archived. New story created.`,
@@ -546,14 +757,14 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
     } else {
       // Create next round
       await RoundRedisHelper.createNewRound(updatedStory.id, updatedStory.roundNumber);
-      
+
       // Broadcast new round start
       await RealTimeHelper.broadcastNewRound(
         updatedStory.id,
         updatedStory.roundNumber,
         3600 // 1 hour for next round
       );
-      
+
       res.json({
         status: 'success',
         message: `Round ${currentRound.roundNumber} resolved successfully`,
@@ -567,7 +778,6 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
         },
       });
     }
-
   } catch (error) {
     console.error(`Error in hourly round resolution: ${error}`);
     res.status(500).json({
@@ -581,7 +791,7 @@ router.post('/internal/scheduler/hourly-round', async (_req, res): Promise<void>
 router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<void> => {
   try {
     console.log('Daily maintenance job triggered at', new Date().toISOString());
-    
+
     const maintenanceResults = {
       storiesChecked: 0,
       leaderboardUpdated: false,
@@ -595,14 +805,14 @@ router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<
     try {
       const currentStory = await StoryRedisHelper.getCurrentStory();
       maintenanceResults.storiesChecked = 1;
-      
+
       if (!currentStory) {
         // No current story exists, create one
         const newStory = await StoryRedisHelper.createNewStory();
         await RoundRedisHelper.createNewRound(newStory.id, newStory.roundNumber);
         maintenanceResults.newStoryCreated = true;
         console.log(`Created new story ${newStory.id} during daily maintenance`);
-        
+
         // Broadcast new round start
         await RealTimeHelper.broadcastNewRound(
           newStory.id,
@@ -613,13 +823,15 @@ router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<
         // Current story is completed but not archived (edge case)
         await StoryRedisHelper.archiveStory(currentStory);
         await LeaderboardRedisHelper.updateLeaderboard(currentStory);
-        
+
         // Create new story
         const newStory = await StoryRedisHelper.createNewStory();
         await RoundRedisHelper.createNewRound(newStory.id, newStory.roundNumber);
         maintenanceResults.newStoryCreated = true;
-        console.log(`Archived completed story ${currentStory.id} and created new story ${newStory.id}`);
-        
+        console.log(
+          `Archived completed story ${currentStory.id} and created new story ${newStory.id}`
+        );
+
         // Broadcast story completion during maintenance
         await RealTimeHelper.broadcastStoryComplete(currentStory, newStory);
       }
@@ -660,11 +872,11 @@ router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<
         throw new Error('Failed to generate yesterday date string');
       }
       const yesterday = yesterdayDate;
-      
+
       // Get current leaderboard to count completed stories
       const leaderboard = await LeaderboardRedisHelper.getTopLeaderboard();
-      
-      // Create daily stats (simplified version - in a real implementation, 
+
+      // Create daily stats (simplified version - in a real implementation,
       // we'd track these metrics throughout the day)
       const dailyStats = {
         date: yesterday,
@@ -688,15 +900,14 @@ router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<
     // Return results
     const hasErrors = maintenanceResults.errors.length > 0;
     const statusCode = hasErrors ? 207 : 200; // 207 Multi-Status for partial success
-    
+
     res.status(statusCode).json({
       status: hasErrors ? 'partial_success' : 'success',
-      message: hasErrors 
+      message: hasErrors
         ? `Daily maintenance completed with ${maintenanceResults.errors.length} errors`
         : 'Daily maintenance completed successfully',
       results: maintenanceResults,
     });
-
   } catch (error) {
     console.error(`Critical error in daily maintenance: ${error}`);
     res.status(500).json({
@@ -709,6 +920,9 @@ router.post('/internal/scheduler/daily-maintenance', async (_req, res): Promise<
 
 // Use router middleware
 app.use(router);
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Get port from environment variable with fallback
 const port = getServerPort();

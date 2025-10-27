@@ -1,20 +1,73 @@
 import { useEffect, useState } from 'react';
 import type { Story, ArchiveResponse } from '../../shared/types/api';
+import { ArchiveSkeleton } from './LoadingStates';
+import { NetworkError } from './ErrorStates';
+import { apiRequest, ApiError } from '../utils/api';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+
+// Simple in-memory cache for API responses
+const apiCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+
+const getCachedData = (key: string): any | null => {
+  const cached = apiCache.get(key);
+  if (!cached) return null;
+  
+  if (Date.now() - cached.timestamp > cached.ttl) {
+    apiCache.delete(key);
+    return null;
+  }
+  
+  return cached.data;
+};
+
+const setCachedData = (key: string, data: any, ttl: number = 5000) => {
+  apiCache.set(key, { data, timestamp: Date.now(), ttl });
+};
 
 type SortOption = 'date' | 'votes';
 
 export const Archive = () => {
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ApiError | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState<SortOption>('date');
   const [expandedStory, setExpandedStory] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const [isRetrying, setIsRetrying] = useState(false);
+  const networkStatus = useNetworkStatus();
 
-  const loadArchive = async (page: number = currentPage, sort: SortOption = sortBy) => {
+  const loadArchive = async (page: number = currentPage, sort: SortOption = sortBy, useCache = true, isRetry = false) => {
+    const cacheKey = `archive-${page}-${sort}`;
+    
+    // Try cache first if enabled and not a retry
+    if (useCache && !isRetry) {
+      const cachedData = getCachedData(cacheKey);
+      if (cachedData) {
+        setStories(cachedData.stories);
+        setTotalPages(cachedData.totalPages);
+        setCurrentPage(cachedData.currentPage);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
+    // Check network status
+    if (!networkStatus.isOnline) {
+      const networkError = new Error('No internet connection') as ApiError;
+      networkError.code = 'NETWORK_OFFLINE';
+      networkError.retryable = true;
+      setError(networkError);
+      setLoading(false);
+      setIsRetrying(false);
+      return;
+    }
+
     try {
-      setLoading(true);
+      setLoading(!isRetry); // Don't show loading on retry
+      setIsRetrying(isRetry);
       setError(null);
 
       const params = new URLSearchParams({
@@ -23,20 +76,41 @@ export const Archive = () => {
         limit: '10',
       });
 
-      const res = await fetch(`/api/archive/stories?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await apiRequest<ArchiveResponse>(
+        `/api/archive/stories?${params}`,
+        {
+          headers: useCache ? {} : { 'Cache-Control': 'no-cache' }
+        },
+        {
+          maxRetries: isRetry ? 0 : 2, // Don't retry on manual retry
+          baseDelay: 1000,
+          maxDelay: 5000
+        }
+      );
       
-      const data: ArchiveResponse = await res.json();
-      if (data.type !== 'archive') throw new Error('Unexpected response type');
+      if (data.type !== 'archive') {
+        throw new Error('Invalid response format') as ApiError;
+      }
+      
+      // Cache for 60 seconds (archive doesn't change frequently)
+      setCachedData(cacheKey, {
+        stories: data.stories,
+        totalPages: data.totalPages,
+        currentPage: data.currentPage
+      }, 60000);
       
       setStories(data.stories);
       setTotalPages(data.totalPages);
       setCurrentPage(data.currentPage);
+      setRetryCount(0);
     } catch (err) {
-      console.error('Failed to load archive', err);
-      setError(err instanceof Error ? err.message : 'Failed to load archive');
+      const apiError = err as ApiError;
+      console.error('Failed to load archive', apiError);
+      setError(apiError);
+      setRetryCount(isRetry ? retryCount : retryCount + 1);
     } finally {
       setLoading(false);
+      setIsRetrying(false);
     }
   };
 
@@ -49,6 +123,10 @@ export const Archive = () => {
       setCurrentPage(newPage);
       loadArchive(newPage, sortBy);
     }
+  };
+
+  const retryLoadArchive = () => {
+    loadArchive(currentPage, sortBy, false, true);
   };
 
   const handleSortChange = (newSort: SortOption) => {
@@ -78,28 +156,17 @@ export const Archive = () => {
   };
 
   if (loading && stories.length === 0) {
-    return (
-      <div className="flex justify-center items-center py-12">
-        <div className="text-xl text-gray-600">Loading archive...</div>
-      </div>
-    );
+    return <ArchiveSkeleton />;
   }
 
-  if (error) {
+  if (error && stories.length === 0) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-        <div className="flex items-center mb-2">
-          <span className="text-red-500 mr-2">❌</span>
-          <h3 className="text-lg font-semibold text-red-800">Error Loading Archive</h3>
-        </div>
-        <p className="text-red-700 mb-4">{error}</p>
-        <button
-          onClick={() => loadArchive()}
-          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
-        >
-          Try Again
-        </button>
-      </div>
+      <NetworkError
+        onRetry={retryLoadArchive}
+        retrying={isRetrying}
+        retryCount={retryCount}
+        maxRetries={3}
+      />
     );
   }
 
@@ -117,17 +184,17 @@ export const Archive = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header with sorting controls */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-gray-900">Story Archive</h2>
+      {/* Header with sorting controls - Mobile optimized */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center sm:gap-4">
+        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Story Archive</h2>
         
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Sort by:</label>
+            <label className="text-sm font-medium text-gray-700 flex-shrink-0">Sort by:</label>
             <select
               value={sortBy}
               onChange={(e) => handleSortChange(e.target.value as SortOption)}
-              className="border border-gray-300 rounded-lg px-3 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="mobile-input flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="date">Completion Date</option>
               <option value="votes">Popularity</option>
@@ -135,37 +202,37 @@ export const Archive = () => {
           </div>
           
           <button
-            onClick={() => loadArchive()}
+            onClick={() => loadArchive(currentPage, sortBy, false)}
             disabled={loading}
-            className="text-sm bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 px-3 py-1 rounded-lg transition-colors"
+            className="touch-button text-sm bg-gray-100 hover:bg-gray-200 disabled:bg-gray-50 px-4 py-2 rounded-lg transition-colors font-medium"
           >
             {loading ? 'Loading...' : 'Refresh'}
           </button>
         </div>
       </div>
 
-      {/* Stories grid */}
-      <div className="grid gap-6">
+      {/* Stories grid - Mobile optimized */}
+      <div className="grid gap-4 sm:gap-6">
         {stories.map((story) => (
-          <div key={story.id} className="bg-white rounded-lg shadow-md p-6">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+          <div key={story.id} className="mobile-card bg-white rounded-lg shadow-md p-4 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start sm:gap-4">
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                  <span className="text-xs sm:text-sm font-medium text-green-600 bg-green-100 px-2 py-1 rounded w-fit">
                     Completed
                   </span>
-                  <span className="text-sm text-gray-500">
+                  <span className="text-xs sm:text-sm text-gray-500">
                     {story.completedAt && formatDate(story.completedAt)}
                   </span>
                 </div>
                 
                 <div className="mb-3">
-                  <p className="text-gray-800 leading-relaxed">
+                  <p className="text-gray-800 leading-relaxed text-sm sm:text-base">
                     {getStoryPreview(story.sentences)}
                   </p>
                 </div>
                 
-                <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+                <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-gray-600">
                   <span className="flex items-center">
                     <span className="font-medium">{story.sentences.length}</span>
                     <span className="ml-1">sentences</span>
@@ -184,7 +251,7 @@ export const Archive = () => {
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => toggleStoryExpansion(story.id)}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className="touch-button bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-sm font-medium"
                 >
                   {expandedStory === story.id ? 'Hide Full Story' : 'Read Full Story'}
                 </button>
@@ -193,21 +260,21 @@ export const Archive = () => {
             
             {/* Expanded full story */}
             {expandedStory === story.id && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <h4 className="text-lg font-semibold mb-4">Complete Story</h4>
-                <div className="bg-gray-50 rounded-lg p-4 max-h-96 overflow-y-auto">
+              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
+                <h4 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Complete Story</h4>
+                <div className="bg-gray-50 rounded-lg p-3 sm:p-4 max-h-64 sm:max-h-96 overflow-y-auto mobile-scroll">
                   <div className="space-y-2">
                     {story.sentences.map((sentence, index) => (
-                      <p key={index} className="text-gray-800 leading-relaxed">
-                        <span className="font-medium text-gray-600 mr-2">[{index + 1}]</span>
+                      <p key={index} className="text-gray-800 leading-relaxed text-sm sm:text-base">
+                        <span className="font-medium text-gray-600 mr-2 text-xs sm:text-sm">[{index + 1}]</span>
                         {sentence}
                       </p>
                     ))}
                   </div>
                 </div>
                 
-                <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                  <p className="text-sm text-blue-800">
+                <div className="mt-3 sm:mt-4 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs sm:text-sm text-blue-800">
                     <strong>Story Statistics:</strong> This story was completed with {story.sentences.length} sentences, 
                     received {story.totalVotes} total votes, and had {story.contributors.length} unique contributors.
                   </p>
@@ -218,18 +285,19 @@ export const Archive = () => {
         ))}
       </div>
 
-      {/* Pagination */}
+      {/* Pagination - Mobile optimized */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-2">
+        <div className="flex justify-center items-center gap-1 sm:gap-2 px-2">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage <= 1 || loading}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="touch-button px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            Previous
+            <span className="hidden sm:inline">Previous</span>
+            <span className="sm:hidden">‹</span>
           </button>
           
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto max-w-[200px] sm:max-w-none">
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum;
               if (totalPages <= 5) {
@@ -247,7 +315,7 @@ export const Archive = () => {
                   key={pageNum}
                   onClick={() => handlePageChange(pageNum)}
                   disabled={loading}
-                  className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+                  className={`touch-button flex-shrink-0 px-3 py-2 text-sm border rounded-lg transition-colors ${
                     currentPage === pageNum
                       ? 'bg-blue-600 text-white border-blue-600'
                       : 'border-gray-300 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400'
@@ -262,9 +330,10 @@ export const Archive = () => {
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage >= totalPages || loading}
-            className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
+            className="touch-button px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
+            <span className="sm:hidden">›</span>
           </button>
         </div>
       )}

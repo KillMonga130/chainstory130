@@ -88,6 +88,30 @@ export type ArchiveResponse = {
   currentPage: number;
 };
 
+export type UserContributionsResponse = {
+  type: 'user-contributions';
+  contributions: UserContribution;
+};
+
+export type UserStoriesResponse = {
+  type: 'user-stories';
+  stories: Story[];
+  totalPages: number;
+  currentPage: number;
+};
+
+export type UserStatsResponse = {
+  type: 'user-stats';
+  stats: {
+    totalSubmissions: number;
+    totalWins: number;
+    totalUpvotes: number;
+    winRate: number;
+    averageUpvotes: number;
+    storiesContributedTo: number;
+  };
+};
+
 // Real-time message types
 export type StoryUpdateMessage = {
   type: 'story-update';
