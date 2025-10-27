@@ -1,6 +1,6 @@
 import { navigateTo } from '@devvit/web/client';
 import { useStory } from './hooks/useStory';
-import { useState, lazy, Suspense } from 'react';
+import { useState } from 'react';
 import { 
   StoryDisplay, 
   SubmissionForm, 
@@ -9,12 +9,11 @@ import {
   ArchiveSkeleton,
   ConnectionStatus,
   ErrorBoundary,
-  NetworkError
+  NetworkError,
+  HelpButton,
+  Leaderboard,
+  Archive
 } from './components';
-
-// Lazy load components that aren't immediately needed
-const Leaderboard = lazy(() => import('./components/Leaderboard').then(module => ({ default: module.Leaderboard })));
-const Archive = lazy(() => import('./components/Archive').then(module => ({ default: module.Archive })));
 
 type TabType = 'story' | 'leaderboard' | 'archive';
 
@@ -79,17 +78,9 @@ export const App = () => {
           </div>
         );
       case 'leaderboard':
-        return (
-          <Suspense fallback={<LeaderboardSkeleton />}>
-            <Leaderboard />
-          </Suspense>
-        );
+        return <Leaderboard />;
       case 'archive':
-        return (
-          <Suspense fallback={<ArchiveSkeleton />}>
-            <Archive />
-          </Suspense>
-        );
+        return <Archive />;
       default:
         return null;
     }
@@ -102,7 +93,10 @@ export const App = () => {
         <ConnectionStatus isOnline={networkStatus.isOnline} />
         
         <div className="w-full max-w-4xl mx-auto p-3 sm:p-4">
-        <h1 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-4 sm:mb-6">Chain Story</h1>
+        <div className="flex justify-between items-center mb-4 sm:mb-6">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Chain Story</h1>
+          <HelpButton />
+        </div>
 
         {/* Tab Navigation - Mobile optimized */}
         <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">

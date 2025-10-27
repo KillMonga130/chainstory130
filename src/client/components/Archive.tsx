@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Story, ArchiveResponse } from '../../shared/types/api';
 import { ArchiveSkeleton } from './LoadingStates';
 import { NetworkError } from './ErrorStates';
+import { ShareButton } from './ShareStory';
 import { apiRequest, ApiError } from '../utils/api';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
@@ -255,6 +256,7 @@ export const Archive = () => {
                 >
                   {expandedStory === story.id ? 'Hide Full Story' : 'Read Full Story'}
                 </button>
+                <ShareButton story={story} size="sm" />
               </div>
             </div>
             

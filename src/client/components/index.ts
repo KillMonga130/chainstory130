@@ -17,3 +17,5 @@ export {
   FormError,
   RealTimeStatus
 } from './ErrorStates';
+export { Help, HelpButton } from './Help';
+export { ShareStory, ShareButton } from './ShareStory';

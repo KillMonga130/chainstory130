@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { LeaderboardEntry, LeaderboardResponse } from '../../shared/types/api';
 import { LeaderboardSkeleton } from './LoadingStates';
 import { NetworkError } from './ErrorStates';
+import { ShareButton } from './ShareStory';
 import { apiRequest, ApiError } from '../utils/api';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 
@@ -198,12 +199,15 @@ export const Leaderboard = () => {
                     <span>{entry.sentenceCount} sentences</span>
                     <span>{formatDate(entry.completedAt)}</span>
                   </div>
-                  <button
-                    onClick={() => toggleStoryExpansion(entry.storyId)}
-                    className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1"
-                  >
-                    {expandedStory === entry.storyId ? 'Hide' : 'View'}
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleStoryExpansion(entry.storyId)}
+                      className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium px-2 py-1"
+                    >
+                      {expandedStory === entry.storyId ? 'Hide' : 'View'}
+                    </button>
+                    <ShareButton leaderboardEntry={entry} size="sm" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -272,12 +276,15 @@ export const Leaderboard = () => {
                     {formatDate(entry.completedAt)}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap">
-                    <button
-                      onClick={() => toggleStoryExpansion(entry.storyId)}
-                      className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      {expandedStory === entry.storyId ? 'Hide' : 'View'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleStoryExpansion(entry.storyId)}
+                        className="touch-button text-blue-600 hover:text-blue-800 text-sm font-medium"
+                      >
+                        {expandedStory === entry.storyId ? 'Hide' : 'View'}
+                      </button>
+                      <ShareButton leaderboardEntry={entry} size="sm" />
+                    </div>
                   </td>
                 </tr>
               ))}

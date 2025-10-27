@@ -4,13 +4,7 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react({
-      // Enable React Fast Refresh for better development experience
-      fastRefresh: true,
-    }), 
-    tailwind()
-  ],
+  plugins: [react(), tailwind()],
   build: {
     outDir: '../../dist/client',
     sourcemap: true,
@@ -28,8 +22,6 @@ export default defineConfig({
         manualChunks: {
           // Separate vendor chunks for better caching
           react: ['react', 'react-dom'],
-          // Separate lazy-loaded components
-          components: ['./src/components/Leaderboard.tsx', './src/components/Archive.tsx'],
         },
       },
     },

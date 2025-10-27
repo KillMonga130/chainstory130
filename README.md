@@ -7,24 +7,26 @@ A real-time collaborative storytelling game built on Reddit's Devvit platform wh
 Chain Story transforms Reddit into a dynamic collaborative writing platform where every community member becomes a co-author. Players submit sentences to continue an ongoing story, and the community votes on the best contributions using Reddit's native upvote system. Every hour at the top of the hour (UTC), the highest-voted sentence becomes the official next part of the story. When a story reaches exactly 100 sentences, it's completed, archived, and celebrated on the leaderboard while a fresh story automatically begins.
 
 The game features a clean, mobile-optimized interface with three main sections:
-- **Story Tab**: View the current collaborative story and submit your own sentences
-- **Leaderboard Tab**: Browse the top 10 completed stories ranked by community votes
-- **Archive Tab**: Explore all completed stories with full-text viewing and search capabilities
+- **Story Tab**: View the current collaborative story, real-time countdown timer, and submit your own sentences with live character validation (10-150 characters)
+- **Leaderboard Tab**: Browse the top 10 completed stories ranked by community votes with expandable previews and sharing options
+- **Archive Tab**: Explore all completed stories with pagination, sorting options (by date or popularity), and full-text viewing capabilities
 
 ### What Makes Chain Story Innovative?
 
 - **Democratic Storytelling**: Every sentence is chosen by community vote, creating truly collaborative narratives that reflect the collective creativity of the entire community
 - **Hourly Drama**: Regular voting cycles create anticipation and engagement throughout the day, with live countdown timers building excitement for each round resolution
-- **Native Reddit Integration**: Uses Reddit's commenting and voting systems as core gameplay mechanics, making it feel natural for Reddit users while adding gamification
-- **Progressive Narrative Building**: Stories develop organically through exactly 100 rounds of community creativity, ensuring each story has a defined arc and completion
-- **Persistent Legacy**: Completed stories become permanent community achievements displayed in searchable archives and competitive leaderboards
-- **Real-Time Engagement**: Live countdown timers, automatic story updates, and instant feedback keep players connected and engaged
-- **Constrained Creativity**: 10-150 character limits force concise, impactful storytelling that maintains narrative momentum and readability
-- **Multi-Tab Experience**: Seamlessly switch between active story participation, competitive leaderboards, and historical archives
-- **Mobile-First Design**: Touch-optimized interface with responsive design ensures great gameplay on both mobile and desktop devices
-- **Community Statistics**: Track story progress with real-time metrics including vote counts, contributor numbers, and completion status
-- **Intelligent Error Handling**: Robust network error detection, automatic retry logic, and graceful offline mode ensure smooth gameplay even with poor connections
-- **Performance Optimization**: Smart caching, lazy loading, and skeleton screens provide fast, responsive user experience across all devices
+- **Native Reddit Integration**: Uses Reddit's commenting and voting systems as core gameplay mechanics, making it feel natural for Reddit users while adding gamification layers
+- **Progressive Narrative Building**: Stories develop organically through exactly 100 rounds of community creativity, ensuring each story has a defined arc and satisfying completion
+- **Persistent Legacy**: Completed stories become permanent community achievements displayed in searchable archives and competitive leaderboards with sharing capabilities
+- **Real-Time Engagement**: Live countdown timers, automatic story updates, network status monitoring, and instant feedback keep players connected and engaged
+- **Constrained Creativity**: 10-150 character limits with real-time validation force concise, impactful storytelling that maintains narrative momentum and readability
+- **Multi-Tab Experience**: Seamlessly switch between active story participation, competitive leaderboards, and historical archives with persistent state management
+- **Mobile-First Design**: Touch-optimized interface with responsive design, safe area support, and 44px minimum touch targets ensures great gameplay on all devices
+- **Community Statistics**: Track story progress with real-time metrics including vote counts, contributor numbers, completion status, and round progression
+- **Intelligent Error Handling**: Robust network error detection, automatic retry logic with exponential backoff, and graceful offline mode ensure smooth gameplay even with poor connections
+- **Performance Optimization**: Smart caching with TTL, lazy loading, skeleton screens, and API response optimization provide fast, responsive user experience across all devices
+- **Accessibility Features**: Comprehensive help system, clear error messages, loading states, and ARIA labels ensure the game is accessible to all players
+- **Story Sharing System**: Built-in sharing functionality allows players to export completed stories in Reddit-formatted markdown for easy sharing across the platform
 
 ### Technology Stack
 
@@ -42,131 +44,144 @@ The game features a clean, mobile-optimized interface with three main sections:
 
 #### 1. **Access the Game Interface**
 - Open Chain Story in a Reddit post to access the main game interface
-- The app loads with a clean, mobile-optimized design featuring three main tabs
+- The app loads with a clean, mobile-optimized design featuring three main tabs: Story, Leaderboard, and Archive
 - Start on the **Story tab** to see the current collaborative story in progress
+- Use the Help button (?) in the top-right corner for detailed game rules and instructions
 
 #### 2. **Read the Current Story**
-- View all existing sentences numbered [1] through [current] in chronological order
+- View all existing sentences numbered [1] through [current] in chronological order in the scrollable story display
 - Each sentence is displayed with clear numbering to follow the narrative flow
-- Scroll through the story display area to understand the current plot and tone
-- If no sentences exist yet, you'll see an invitation to start the story
+- Scroll through the story area to understand the current plot, tone, and writing style
+- If no sentences exist yet, you'll see an invitation to start the story with the first sentence
 
 #### 3. **Check Round Status and Timing**
-- Look at the round information showing "Round X • Y/100 sentences"
+- Look at the round information showing "Round X • Y/100 sentences" at the top of the story display
 - Watch the live countdown timer displaying time until the next round (format: "MM:SS")
-- View real-time statistics including total votes, contributors, and story status
-- The timer counts down to the next hour (:00 UTC) when the round resolves
+- View real-time statistics in the four-panel dashboard: Sentences, Total Votes, Contributors, and Status
+- The timer counts down to the next hour (:00 UTC) when the round automatically resolves
 
 #### 4. **Submit Your Creative Contribution**
 - Scroll to the submission form below the story display
-- Write a sentence that continues the narrative in the text area
-- **Character Requirements**: Your sentence must be 10-150 characters long
-- Use the live character counter that shows "X/150 characters" with color coding:
-  - Red: Under 10 characters (too short) or over 150 (too long)
-  - Yellow: 130-150 characters (approaching limit)
-  - Green: 10-129 characters (valid range)
-- The word counter shows how many words you've written
+- Write a sentence that continues the narrative in the expandable text area
+- **Character Requirements**: Your sentence must be exactly 10-150 characters long (strictly enforced)
+- Use the live character counter that shows "X/150 characters" with color-coded feedback:
+  - Red: Under 10 characters (too short) or over 150 (too long) - submission disabled
+  - Yellow: 130-150 characters (approaching limit) - valid but near maximum
+  - Green: 10-129 characters (optimal range) - ready to submit
+- The word counter shows how many words you've written for reference
+- Sentences should end with proper punctuation (. ! ?) for best results
 - Click "Submit Sentence" to post your contribution as a Reddit comment
 
 #### 5. **Participate in Community Voting**
 - Your sentence appears as a Reddit comment formatted as "[Round X] Your sentence"
 - Navigate to the Reddit comments section to see all submissions for the current round
-- Vote on other players' sentences using Reddit's upvote system
-- The submission with the most upvotes at the end of the round wins
-- You can change your votes anytime before the round ends
+- Vote on other players' sentences using Reddit's native upvote system
+- The submission with the most upvotes at the end of the round wins and becomes part of the story
+- You can change your votes anytime before the round ends at the top of the hour
+- Encourage others to vote to increase community engagement
 
 #### 6. **Watch Automatic Round Resolution**
-- Every hour at exactly :00 UTC, the round automatically resolves
-- The system finds the highest-voted sentence from the past hour
-- The winning sentence is added to the story and the round counter advances
-- If no valid submissions exist, a fallback sentence "The silence grew..." is used
-- The story display updates in real-time with the new sentence
-- A new round immediately begins for the next sentence
+- Every hour at exactly :00 UTC (1:00, 2:00, 3:00, etc.), the round automatically resolves
+- The system finds the highest-voted valid sentence from the past hour
+- The winning sentence is added to the story and the round counter advances to the next number
+- If no valid submissions exist, a fallback sentence "The silence grew..." is automatically used
+- The story display updates in real-time with the new sentence and updated statistics
+- A new round immediately begins for the next sentence, continuing the collaborative process
 
 #### 7. **Explore the Leaderboard**
-- Click the **Leaderboard tab** to view the top 10 completed stories
-- Stories are ranked by total votes received across all 100 sentences
-- See story previews, creators, vote counts, and completion dates
-- Click "View" on any entry to expand and read a story preview
-- The leaderboard updates automatically when new stories complete
+- Click the **Leaderboard tab** to view the top 10 completed stories ranked by total community votes
+- Stories are ranked by total votes received across all 100 sentences, with ties broken by completion date
+- See story previews (first few sentences), creators, vote counts, completion dates, and rankings with medal icons
+- Click "View" on any entry to expand and read a longer story preview
+- Use the "Share" button to export stories in Reddit-formatted markdown for easy sharing
+- The leaderboard updates automatically every 30 seconds when new stories complete
 
 #### 8. **Browse the Archive**
-- Click the **Archive tab** to explore all completed stories
-- Use the sort dropdown to organize by "Completion Date" or "Popularity"
-- Navigate through pages using the pagination controls at the bottom
-- Click "Read Full Story" on any entry to expand and view all 100 sentences
-- Each story shows statistics: sentence count, total votes, and contributor count
+- Click the **Archive tab** to explore all completed stories with full pagination support
+- Use the sort dropdown to organize by "Completion Date" (newest first) or "Popularity" (most votes first)
+- Navigate through pages using the pagination controls at the bottom (10 stories per page)
+- Click "Read Full Story" on any entry to expand and view all 100 sentences with sentence numbering
+- Each story shows comprehensive statistics: sentence count, total votes, contributor count, and completion date
+- Use the "Share" button to export complete stories for sharing on Reddit or other platforms
 
 #### 9. **Story Completion and New Cycles**
-- When the 100th sentence is added, the story is automatically marked complete
-- Completed stories are immediately archived and added to the leaderboard rankings
-- A new story begins automatically, starting fresh at Round 1
-- The cycle continues indefinitely, creating an ongoing collaborative experience
-- You'll see a completion celebration message when stories finish
+- When the 100th sentence is added, the story is automatically marked complete with a celebration message
+- Completed stories are immediately archived and added to the leaderboard rankings based on total votes
+- A new story begins automatically, starting fresh at Round 1 with an empty story waiting for the first sentence
+- The cycle continues indefinitely, creating an ongoing collaborative storytelling experience
+- You'll see completion notifications and can immediately start participating in the new story
 
 ### Game Rules & Mechanics:
 
 #### **Submission Requirements:**
-- **Character Limit**: Sentences must be exactly 10-150 characters (strictly enforced with real-time validation)
-- **One Per Round**: Each player can submit one sentence per hourly round
+- **Character Limit**: Sentences must be exactly 10-150 characters (strictly enforced with real-time validation and color-coded feedback)
+- **One Per Round**: Each player can submit one sentence per hourly round through the submission form
 - **No Editing**: Submissions cannot be modified once posted (Reddit comment rules apply)
-- **Content Guidelines**: Follow Reddit's community guidelines and subreddit rules
-- **Proper Punctuation**: Sentences should end with appropriate punctuation (. ! ?)
+- **Content Guidelines**: Follow Reddit's community guidelines and subreddit rules for appropriate content
+- **Proper Punctuation**: Sentences should end with appropriate punctuation (. ! ?) for best narrative flow
+- **Real-Time Validation**: The form provides instant feedback on character count, word count, and validity before submission
 
 #### **Voting & Selection Process:**
-- **Democratic Process**: Community votes determine winning sentences using Reddit upvotes
-- **Hourly Cycles**: Rounds end precisely at :00 UTC every hour (e.g., 1:00, 2:00, 3:00)
-- **Automatic Resolution**: System automatically selects the highest-voted valid submission
-- **Tie Breaking**: In case of vote ties, the earliest submission wins
-- **Fallback System**: If no valid submissions exist, "The silence grew..." is used
-- **Comment Format**: Submissions are posted as "[Round X] Your sentence" for easy identification
+- **Democratic Process**: Community votes determine winning sentences using Reddit's native upvote system
+- **Hourly Cycles**: Rounds end precisely at :00 UTC every hour (e.g., 1:00, 2:00, 3:00) with live countdown timers
+- **Automatic Resolution**: System automatically selects the highest-voted valid submission when rounds end
+- **Tie Breaking**: In case of vote ties, the earliest submission wins to ensure fair play
+- **Fallback System**: If no valid submissions exist, "The silence grew..." is automatically used to maintain story continuity
+- **Comment Format**: Submissions are posted as "[Round X] Your sentence" for easy identification in Reddit comments
+- **Live Updates**: Story display refreshes automatically when new winning sentences are selected
 
 #### **Story Progression:**
-- **Fixed Length**: All stories must reach exactly 100 sentences to complete
-- **Sequential Building**: Each sentence builds on all previous sentences chronologically
-- **Persistent Progress**: Stories continue across multiple days until completion
-- **Automatic Archival**: Completed stories are immediately archived and ranked
-- **Continuous Cycle**: New stories begin automatically when previous ones complete
-- **Real-Time Updates**: Story display refreshes automatically when new sentences are added
+- **Fixed Length**: All stories must reach exactly 100 sentences to complete, ensuring consistent story arcs
+- **Sequential Building**: Each sentence builds on all previous sentences chronologically with numbered display
+- **Persistent Progress**: Stories continue across multiple days until completion, maintaining long-term engagement
+- **Automatic Archival**: Completed stories are immediately archived and ranked on the leaderboard by total votes
+- **Continuous Cycle**: New stories begin automatically when previous ones complete, ensuring endless collaborative storytelling
+- **Real-Time Statistics**: Track progress with live metrics including sentence count, vote totals, contributor numbers, and completion status
 
 ### Advanced Features:
 
 #### **Real-Time Experience:**
-- **Live Countdown Timers**: Precise countdown to the next round resolution showing minutes and seconds
-- **Automatic Story Updates**: Story display refreshes automatically when new sentences are added
-- **Network Status Monitoring**: Real-time connection status with offline/online indicators
-- **Status Indicators**: Clear visual feedback for submission success, errors, and loading states
-- **Responsive Design**: Mobile-first interface optimized for touch interactions on all device sizes
-- **Performance Optimization**: Lazy loading for leaderboard and archive tabs to improve initial load times
+- **Live Countdown Timers**: Precise countdown to the next round resolution showing minutes and seconds until the top of each hour
+- **Automatic Story Updates**: Story display refreshes automatically when new sentences are added without requiring page reload
+- **Network Status Monitoring**: Real-time connection status with offline/online indicators and graceful degradation
+- **Status Indicators**: Clear visual feedback for submission success, errors, loading states, and network connectivity
+- **Responsive Design**: Mobile-first interface optimized for touch interactions on all device sizes with safe area support
+- **Performance Optimization**: Smart caching with TTL, lazy loading, and skeleton screens for fast loading times
 
 #### **Community Features:**
-- **Contributor Tracking**: Real-time display of unique players who have contributed to each story
-- **Vote Aggregation**: Running total of community votes across all rounds for each story
-- **Story Statistics Dashboard**: Four-panel display showing sentences, votes, contributors, and status
-- **Leaderboard Rankings**: Top 10 stories ranked by total community engagement with detailed metrics
-- **Story Previews**: Expandable previews in both leaderboard and archive for quick story browsing
+- **Contributor Tracking**: Real-time display of unique players who have contributed to each story with running counts
+- **Vote Aggregation**: Running total of community votes across all rounds for each story displayed in statistics dashboard
+- **Story Statistics Dashboard**: Four-panel display showing sentences, total votes, contributors, and current status with color-coded indicators
+- **Leaderboard Rankings**: Top 10 stories ranked by total community engagement with medal icons, detailed metrics, and expandable previews
+- **Story Previews**: Expandable previews in both leaderboard and archive for quick story browsing without full page navigation
 
 #### **Archive & Discovery System:**
-- **Paginated Browsing**: Navigate through completed stories 10 at a time with intuitive pagination
-- **Dual Sorting Options**: Sort by completion date (newest first) or popularity (most votes first)
-- **Full Story Expansion**: Click to expand any archived story and read all 100 sentences with sentence numbering
-- **Story Statistics**: Each archive entry shows completion date, vote totals, and contributor counts
-- **Mobile-Optimized Navigation**: Touch-friendly pagination and sorting controls for mobile users
+- **Paginated Browsing**: Navigate through completed stories 10 at a time with intuitive pagination controls and page indicators
+- **Dual Sorting Options**: Sort by completion date (newest first) or popularity (most votes first) with persistent sort preferences
+- **Full Story Expansion**: Click to expand any archived story and read all 100 sentences with clear sentence numbering and formatting
+- **Story Statistics**: Each archive entry shows completion date, vote totals, contributor counts, and story length with visual indicators
+- **Mobile-Optimized Navigation**: Touch-friendly pagination and sorting controls optimized for mobile users with proper touch targets
 
 #### **User Interface Enhancements:**
-- **Tab-Based Navigation**: Clean three-tab interface (Story/Leaderboard/Archive) with active state indicators
-- **Touch-Friendly Controls**: All buttons meet 44px minimum touch target size for mobile accessibility
-- **Loading States**: Skeleton screens and spinners provide feedback during data loading
-- **Intelligent Error Handling**: Network error detection, automatic retry logic, and graceful degradation
-- **Safe Area Support**: Proper padding for devices with notches and rounded corners
-- **Smart Caching**: API response caching with TTL for improved performance and reduced server load
+- **Tab-Based Navigation**: Clean three-tab interface (Story/Leaderboard/Archive) with active state indicators and smooth transitions
+- **Touch-Friendly Controls**: All buttons meet 44px minimum touch target size for mobile accessibility with proper spacing
+- **Loading States**: Skeleton screens, spinners, and progressive loading provide feedback during data loading and API calls
+- **Intelligent Error Handling**: Network error detection, automatic retry logic with exponential backoff, and graceful degradation
+- **Safe Area Support**: Proper padding for devices with notches and rounded corners using CSS safe area insets
+- **Smart Caching**: API response caching with configurable TTL for improved performance and reduced server load
 
 #### **Error Recovery & Resilience:**
-- **Automatic Retry Logic**: Failed requests automatically retry with exponential backoff
-- **Network Status Detection**: Monitors online/offline status and prevents requests when offline
-- **Graceful Degradation**: App continues to function with cached data when network is unavailable
-- **User-Friendly Error Messages**: Clear, actionable error messages with specific retry instructions
-- **Connection Recovery**: Automatic reconnection attempts when network is restored
+- **Automatic Retry Logic**: Failed requests automatically retry with exponential backoff and configurable retry limits
+- **Network Status Detection**: Monitors online/offline status and prevents requests when offline with clear user feedback
+- **Graceful Degradation**: App continues to function with cached data when network is unavailable with offline indicators
+- **User-Friendly Error Messages**: Clear, actionable error messages with specific retry instructions and troubleshooting guidance
+- **Connection Recovery**: Automatic reconnection attempts when network is restored with success notifications
+
+#### **Sharing & Export System:**
+- **Reddit-Formatted Export**: Generate shareable Reddit markdown format with story content, statistics, and contributor attribution
+- **Copy-to-Clipboard**: One-click copying with fallback support for older browsers and secure/non-secure contexts
+- **Story Metadata**: Include completion dates, vote counts, contributor numbers, and leaderboard rankings in shared content
+- **Mobile-Optimized Sharing**: Touch-friendly sharing interface with modal dialogs optimized for mobile devices
 
 ## Getting Started for Developers
 

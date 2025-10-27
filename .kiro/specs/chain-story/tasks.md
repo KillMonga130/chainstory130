@@ -247,9 +247,16 @@
     - Test edge cases and failure modes
     - _Requirements: 9.1, 9.2, 9.4_
 
-- [ ] 10. Add game rules and help system
+- [x] 10. Add game rules and help system
 
-  - [ ] 10.1 Create game rules and instructions display
+
+
+
+
+
+  - [x] 10.1 Create game rules and instructions display
+
+
 
     - Build help modal or section explaining game mechanics
     - Document sentence length requirements clearly
@@ -257,7 +264,9 @@
     - Describe story completion and archival system
     - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
 
-  - [ ] 10.2 Implement sharing functionality for completed stories
+  - [x] 10.2 Implement sharing functionality for completed stories
+
+
     - Generate shareable Reddit markdown format
     - Include story text, contributor count, and statistics
     - Provide copy-to-clipboard functionality
@@ -266,7 +275,11 @@
 
 - [ ] 11. Integration testing and final polish
 
+
+
   - [ ] 11.1 Conduct end-to-end testing of complete game flow
+
+
 
     - Test full story creation cycle from start to completion
     - Verify hourly round resolution works correctly

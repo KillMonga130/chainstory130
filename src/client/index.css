@@ -28,7 +28,7 @@
   
   /* Improved mobile scrolling */
   .mobile-scroll {
-    @apply -webkit-overflow-scrolling-touch;
+    -webkit-overflow-scrolling: touch;
   }
   
   /* Mobile-friendly card spacing */
