@@ -6,6 +6,7 @@
  */
 
 import { vi, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
+import '@testing-library/jest-dom';
 
 // Mock global objects
 global.console = {

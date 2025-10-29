@@ -92,6 +92,45 @@ export interface GetStoryStatsResponse {
     averageVotesPerChapter: number;
     storyDuration: number;
     currentEngagement: number;
+    storyStartTime?: Date;
+    currentChapter?: string;
+    votingActive: boolean;
+  };
+  error?: string;
+}
+
+export interface ContentModerationRequest {
+  adminKey: string;
+  action: 'flag' | 'remove' | 'approve';
+  targetType: 'chapter' | 'choice' | 'story';
+  targetId: string;
+  reason?: string;
+}
+
+export interface ContentModerationResponse {
+  success: boolean;
+  data?: {
+    action: string;
+    targetType: string;
+    targetId: string;
+    moderatedAt: Date;
+  };
+  error?: string;
+}
+
+export interface GetModerationStatsResponse {
+  success: boolean;
+  data?: {
+    totalReports: number;
+    pendingReports: number;
+    resolvedReports: number;
+    flaggedContent: Array<{
+      id: string;
+      type: 'chapter' | 'choice' | 'story';
+      reason: string;
+      reportedAt: Date;
+      status: 'pending' | 'resolved' | 'dismissed';
+    }>;
   };
   error?: string;
 }
@@ -99,7 +138,7 @@ export interface GetStoryStatsResponse {
 // Realtime Message Types
 
 export interface RealtimeMessage {
-  type: 'vote_update' | 'chapter_transition' | 'story_reset' | 'voting_ended';
+  type: 'vote_update' | 'chapter_transition' | 'story_reset' | 'voting_ended' | 'connection_test';
   timestamp: Date;
   data: any;
 }
@@ -136,6 +175,14 @@ export interface VotingEndedMessage extends RealtimeMessage {
     chapterId: string;
     winningChoice: string;
     finalStats: VotingStats;
+  };
+}
+
+export interface ConnectionTestMessage extends RealtimeMessage {
+  type: 'connection_test';
+  data: {
+    message: string;
+    serverTime: string;
   };
 }
 

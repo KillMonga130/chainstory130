@@ -1,11 +1,10 @@
-import { context } from '@devvit/web/server';
+import { redis } from '@devvit/web/server';
 import { RedisError, ErrorLogger, ErrorRecovery } from './error-handler';
 
 // Redis operation wrapper with error handling and retry logic
 export class RedisErrorHandler {
   private static readonly MAX_RETRIES = 3;
   private static readonly BASE_DELAY = 500; // 500ms
-  private static readonly MAX_DELAY = 5000; // 5 seconds
 
   // Wrap Redis operations with error handling and retry logic
   static async withErrorHandling<T>(
@@ -44,18 +43,16 @@ export class RedisErrorHandler {
   // Redis connection health check
   static async checkConnection(): Promise<boolean> {
     try {
-      const { redis } = context;
       const testKey = `health-check-${Date.now()}`;
-      
+
       await redis.set(testKey, 'test', { expiration: new Date(Date.now() + 1000) });
       const result = await redis.get(testKey);
-      
+
       return result === 'test';
     } catch (error) {
-      ErrorLogger.logError(new RedisError(
-        `Redis health check failed: ${(error as Error).message}`,
-        'health-check'
-      ));
+      ErrorLogger.logError(
+        new RedisError(`Redis health check failed: ${(error as Error).message}`, 'health-check')
+      );
       return false;
     }
   }
@@ -64,11 +61,8 @@ export class RedisErrorHandler {
   static async safeGet(key: string, fallback: string | null = null): Promise<string | null> {
     return this.withErrorHandling(
       async () => {
-        const { redis } = context;
-        if (!redis) {
-          throw new Error('Redis is not available in context');
-        }
-        return await redis.get(key);
+        const result = await redis.get(key);
+        return result ?? null;
       },
       `GET ${key}`,
       fallback
@@ -76,45 +70,26 @@ export class RedisErrorHandler {
   }
 
   // Safe Redis set with retry
-  static async safeSet(
-    key: string, 
-    value: string, 
-    options?: { expiration?: Date }
-  ): Promise<void> {
-    await this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        if (!redis) {
-          throw new Error('Redis is not available in context');
-        }
-        await redis.set(key, value, options);
-      },
-      `SET ${key}`
-    );
+  static async safeSet(key: string, value: string, options?: { expiration?: Date }): Promise<void> {
+    await this.withErrorHandling(async () => {
+      await redis.set(key, value, options);
+    }, `SET ${key}`);
   }
 
   // Safe Redis delete with retry
   static async safeDelete(key: string): Promise<void> {
-    await this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        await redis.del(key);
-      },
-      `DELETE ${key}`
-    );
+    await this.withErrorHandling(async () => {
+      await redis.del(key);
+    }, `DELETE ${key}`);
   }
 
   // Safe Redis JSON operations
   static async safeGetJSON<T>(key: string, fallback?: T): Promise<T | null> {
     return this.withErrorHandling(
       async () => {
-        const { redis } = context;
-        if (!redis) {
-          throw new Error('Redis is not available in context');
-        }
         const data = await redis.get(key);
         if (!data) return null;
-        
+
         try {
           return JSON.parse(data) as T;
         } catch (parseError) {
@@ -130,63 +105,31 @@ export class RedisErrorHandler {
   }
 
   static async safeSetJSON<T>(
-    key: string, 
-    value: T, 
+    key: string,
+    value: T,
     options?: { expiration?: Date }
   ): Promise<void> {
-    await this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        if (!redis) {
-          throw new Error('Redis is not available in context');
-        }
-        const jsonString = JSON.stringify(value);
-        await redis.set(key, jsonString, options);
-      },
-      `SET_JSON ${key}`
-    );
+    await this.withErrorHandling(async () => {
+      const jsonString = JSON.stringify(value);
+      await redis.set(key, jsonString, options);
+    }, `SET_JSON ${key}`);
   }
 
-  // Safe Redis list operations
-  static async safePush(key: string, ...values: string[]): Promise<void> {
-    await this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        for (const value of values) {
-          await redis.lPush(key, value);
-        }
-      },
-      `PUSH ${key}`
-    );
-  }
-
-  static async safeGetList(key: string, start = 0, end = -1): Promise<string[]> {
-    return this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        return await redis.lRange(key, start, end);
-      },
-      `GET_LIST ${key}`,
-      []
-    );
-  }
+  // Note: Devvit Redis doesn't support traditional list operations like lPush/lRange
+  // Use sorted sets or hashes for list-like functionality instead
 
   // Safe Redis hash operations
   static async safeHashSet(key: string, field: string, value: string): Promise<void> {
-    await this.withErrorHandling(
-      async () => {
-        const { redis } = context;
-        await redis.hSet(key, { [field]: value });
-      },
-      `HSET ${key} ${field}`
-    );
+    await this.withErrorHandling(async () => {
+      await redis.hSet(key, { [field]: value });
+    }, `HSET ${key} ${field}`);
   }
 
   static async safeHashGet(key: string, field: string): Promise<string | null> {
     return this.withErrorHandling(
       async () => {
-        const { redis } = context;
-        return await redis.hGet(key, field);
+        const result = await redis.hGet(key, field);
+        return result ?? null;
       },
       `HGET ${key} ${field}`,
       null
@@ -196,7 +139,6 @@ export class RedisErrorHandler {
   static async safeHashGetAll(key: string): Promise<Record<string, string>> {
     return this.withErrorHandling(
       async () => {
-        const { redis } = context;
         return await redis.hGetAll(key);
       },
       `HGETALL ${key}`,
@@ -206,38 +148,40 @@ export class RedisErrorHandler {
 
   // Batch operations with transaction-like behavior
   static async safeBatchOperation<T>(
-    operations: Array<() => Promise<any>>,
+    operations: Array<() => Promise<T>>,
     operationName: string
   ): Promise<T[]> {
-    return this.withErrorHandling(
-      async () => {
-        const results: T[] = [];
-        
-        for (let i = 0; i < operations.length; i++) {
-          try {
-            const result = await operations[i]();
-            results.push(result);
-          } catch (error) {
-            // If any operation fails, log it but continue with others
-            ErrorLogger.logWarning(`Batch operation ${i} failed in ${operationName}`, {
-              error: (error as Error).message,
-              operationIndex: i,
-            });
-            throw error; // Re-throw to trigger retry of entire batch
-          }
+    return this.withErrorHandling(async () => {
+      const results: T[] = [];
+
+      for (let i = 0; i < operations.length; i++) {
+        const operation = operations[i];
+        if (!operation) {
+          throw new Error(`Operation at index ${i} is undefined`);
         }
-        
-        return results;
-      },
-      `BATCH_${operationName}`
-    );
+
+        try {
+          const result = await operation();
+          results.push(result);
+        } catch (error) {
+          // If any operation fails, log it but continue with others
+          ErrorLogger.logWarning(`Batch operation ${i} failed in ${operationName}`, {
+            error: (error as Error).message,
+            operationIndex: i,
+          });
+          throw error; // Re-throw to trigger retry of entire batch
+        }
+      }
+
+      return results;
+    }, `BATCH_${operationName}`);
   }
 
   // Memory usage monitoring
-  static async checkMemoryUsage(): Promise<{ 
-    healthy: boolean; 
-    usage?: number; 
-    warning?: string 
+  static async checkMemoryUsage(): Promise<{
+    healthy: boolean;
+    usage?: number;
+    warning?: string;
   }> {
     try {
       // Note: Redis memory info is not directly available in Devvit

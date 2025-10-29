@@ -304,6 +304,128 @@ export class HealthChecker {
   }
 }
 
+// Network error types
+export class NetworkError extends ApiError {
+  constructor(message: string, operation?: string) {
+    super(`Network error: ${message}`, 503, 'NETWORK_ERROR', true, { operation });
+  }
+}
+
+export class TimeoutError extends ApiError {
+  constructor(operation: string, timeoutMs: number) {
+    super(`Operation timed out after ${timeoutMs}ms: ${operation}`, 408, 'TIMEOUT_ERROR', true, { operation, timeoutMs });
+  }
+}
+
+// Performance monitoring utilities
+export class PerformanceMonitor {
+  private static metrics = new Map<string, { count: number; totalTime: number; errors: number }>();
+
+  static startTimer(operation: string): () => void {
+    const startTime = Date.now();
+    
+    return () => {
+      const duration = Date.now() - startTime;
+      this.recordMetric(operation, duration, false);
+    };
+  }
+
+  static recordMetric(operation: string, duration: number, isError: boolean): void {
+    const existing = this.metrics.get(operation) || { count: 0, totalTime: 0, errors: 0 };
+    
+    this.metrics.set(operation, {
+      count: existing.count + 1,
+      totalTime: existing.totalTime + duration,
+      errors: existing.errors + (isError ? 1 : 0)
+    });
+  }
+
+  static getMetrics(): Record<string, { avgTime: number; count: number; errorRate: number }> {
+    const result: Record<string, { avgTime: number; count: number; errorRate: number }> = {};
+    
+    for (const [operation, metrics] of this.metrics.entries()) {
+      result[operation] = {
+        avgTime: metrics.totalTime / metrics.count,
+        count: metrics.count,
+        errorRate: metrics.errors / metrics.count
+      };
+    }
+    
+    return result;
+  }
+
+  static clearMetrics(): void {
+    this.metrics.clear();
+  }
+}
+
+// Circuit breaker for preventing cascade failures
+export class CircuitBreaker {
+  private failures = 0;
+  private lastFailureTime = 0;
+  private state: 'closed' | 'open' | 'half-open' = 'closed';
+
+  constructor(
+    private readonly failureThreshold: number = 5,
+    private readonly recoveryTimeMs: number = 60000, // 1 minute
+    private readonly operationName: string = 'unknown'
+  ) {}
+
+  async execute<T>(operation: () => Promise<T>): Promise<T> {
+    if (this.state === 'open') {
+      if (Date.now() - this.lastFailureTime > this.recoveryTimeMs) {
+        this.state = 'half-open';
+        ErrorLogger.logInfo(`Circuit breaker half-open for ${this.operationName}`);
+      } else {
+        throw new ApiError(
+          `Circuit breaker is open for ${this.operationName}`,
+          503,
+          'CIRCUIT_BREAKER_OPEN'
+        );
+      }
+    }
+
+    try {
+      const result = await operation();
+      
+      if (this.state === 'half-open') {
+        this.reset();
+        ErrorLogger.logInfo(`Circuit breaker closed for ${this.operationName}`);
+      }
+      
+      return result;
+    } catch (error) {
+      this.recordFailure();
+      throw error;
+    }
+  }
+
+  private recordFailure(): void {
+    this.failures++;
+    this.lastFailureTime = Date.now();
+
+    if (this.failures >= this.failureThreshold) {
+      this.state = 'open';
+      ErrorLogger.logWarning(`Circuit breaker opened for ${this.operationName}`, {
+        failures: this.failures,
+        threshold: this.failureThreshold
+      });
+    }
+  }
+
+  private reset(): void {
+    this.failures = 0;
+    this.state = 'closed';
+  }
+
+  getState(): { state: string; failures: number } {
+    return {
+      state: this.state,
+      failures: this.failures
+    };
+  }
+}
+
 // Graceful error recovery utilities
 export class ErrorRecovery {
   static async withRetry<T>(
@@ -313,29 +435,43 @@ export class ErrorRecovery {
     backoffMultiplier: number = 2
   ): Promise<T> {
     let lastError: Error;
+    const stopTimer = PerformanceMonitor.startTimer('retry_operation');
     
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await operation();
-      } catch (error) {
-        lastError = error as Error;
-        
-        if (attempt === maxRetries) {
-          break; // Don't wait after the last attempt
+    try {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          const result = await operation();
+          stopTimer();
+          return result;
+        } catch (error) {
+          lastError = error as Error;
+          
+          if (attempt === maxRetries) {
+            break; // Don't wait after the last attempt
+          }
+          
+          // Wait before retry with exponential backoff and jitter
+          const baseDelay = delayMs * Math.pow(backoffMultiplier, attempt);
+          const jitter = Math.random() * 0.1 * baseDelay; // 10% jitter
+          const delay = baseDelay + jitter;
+          
+          await new Promise(resolve => setTimeout(resolve, delay));
+          
+          ErrorLogger.logWarning(`Retry attempt ${attempt + 1}/${maxRetries} failed`, {
+            error: lastError.message,
+            nextRetryIn: delay * backoffMultiplier,
+            attempt: attempt + 1
+          });
         }
-        
-        // Wait before retry with exponential backoff
-        const delay = delayMs * Math.pow(backoffMultiplier, attempt);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        
-        ErrorLogger.logWarning(`Retry attempt ${attempt + 1}/${maxRetries} failed`, {
-          error: lastError.message,
-          nextRetryIn: delay * backoffMultiplier,
-        });
       }
+      
+      stopTimer();
+      PerformanceMonitor.recordMetric('retry_operation', 0, true);
+      throw lastError!;
+    } catch (error) {
+      stopTimer();
+      throw error;
     }
-    
-    throw lastError!;
   }
 
   static async withFallback<T>(
@@ -343,8 +479,12 @@ export class ErrorRecovery {
     fallbackOperation: () => Promise<T>,
     fallbackCondition?: (error: Error) => boolean
   ): Promise<T> {
+    const stopTimer = PerformanceMonitor.startTimer('fallback_operation');
+    
     try {
-      return await primaryOperation();
+      const result = await primaryOperation();
+      stopTimer();
+      return result;
     } catch (error) {
       const shouldUseFallback = fallbackCondition 
         ? fallbackCondition(error as Error)
@@ -354,10 +494,43 @@ export class ErrorRecovery {
         ErrorLogger.logWarning('Using fallback operation', {
           primaryError: (error as Error).message,
         });
-        return await fallbackOperation();
+        
+        try {
+          const result = await fallbackOperation();
+          stopTimer();
+          return result;
+        } catch (fallbackError) {
+          stopTimer();
+          PerformanceMonitor.recordMetric('fallback_operation', 0, true);
+          throw fallbackError;
+        }
       }
       
+      stopTimer();
+      PerformanceMonitor.recordMetric('fallback_operation', 0, true);
       throw error;
     }
+  }
+
+  static async withTimeout<T>(
+    operation: () => Promise<T>,
+    timeoutMs: number,
+    operationName: string = 'unknown'
+  ): Promise<T> {
+    const stopTimer = PerformanceMonitor.startTimer(`timeout_${operationName}`);
+    
+    return Promise.race([
+      operation().then(result => {
+        stopTimer();
+        return result;
+      }),
+      new Promise<never>((_, reject) => {
+        setTimeout(() => {
+          stopTimer();
+          PerformanceMonitor.recordMetric(`timeout_${operationName}`, timeoutMs, true);
+          reject(new TimeoutError(operationName, timeoutMs));
+        }, timeoutMs);
+      })
+    ]);
   }
 }

@@ -17,13 +17,14 @@
     "dir": "assets"
   },
   "permissions": {
-    "redis": true
+    "redis": true,
+    "realtime": true
   },
   "menu": {
     "items": [
       {
-        "label": "Create Cat vs Mouse Game Post",
-        "description": "Start a new Cat vs Mouse Chase game",
+        "label": "Create Haunted Thread Story Post",
+        "description": "Start a new community-driven horror story experience",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
