@@ -6,7 +6,6 @@ import {
   ChapterTransitionMessage,
   StoryResetMessage,
   VotingEndedMessage,
-  ConnectionTestMessage,
 } from '../../shared/types/api';
 
 interface UseRealtimeProps {
@@ -47,7 +46,7 @@ export const useRealtime = ({
   // Generate channel name using the same format as server
   const channelName = `haunted_thread_${postId}`;
 
-  console.log('🔌 Realtime hook initialized with channel:', channelName, 'postId:', postId);
+  // Removed noisy initialization log
 
   const handleMessage = useCallback(
     (data: any) => {
@@ -55,15 +54,14 @@ export const useRealtime = ({
         // Parse the message if it's a string
         const message: RealtimeMessage = typeof data === 'string' ? JSON.parse(data) : data;
 
-        console.log('📨 REALTIME MESSAGE RECEIVED:', message.type, message);
+        console.log('📨 Realtime:', message.type);
 
         switch (message.type) {
           case 'vote_update':
-            console.log('🗳️ Processing vote update message');
             onVoteUpdate?.(message as VoteUpdateMessage);
             break;
           case 'chapter_transition':
-            console.log('🔄 Processing chapter transition message');
+            console.log('🔄 Chapter transition received');
             onChapterTransition?.(message as ChapterTransitionMessage);
             break;
           case 'story_reset':
@@ -73,10 +71,7 @@ export const useRealtime = ({
             onVotingEnded?.(message as VotingEndedMessage);
             break;
           case 'connection_test':
-            console.log(
-              'Realtime connection test received:',
-              (message as ConnectionTestMessage).data
-            );
+            // Silently handle connection tests
             break;
           default:
             console.warn('Unknown realtime message type:', message.type);
@@ -89,11 +84,11 @@ export const useRealtime = ({
     [onVoteUpdate, onChapterTransition, onStoryReset, onVotingEnded, onError]
   );
 
-  const handleConnect = useCallback((channel: string) => {
-    console.log(`Connected to realtime channel: ${channel}`);
+  const handleConnect = useCallback(() => {
     setIsConnected(true);
     setConnectionStatus('connected');
     reconnectAttemptsRef.current = 0;
+    isReconnecting.current = false;
 
     // Clear any pending reconnection attempts
     if (reconnectTimeoutRef.current) {
@@ -102,54 +97,53 @@ export const useRealtime = ({
     }
   }, []);
 
-  const handleDisconnect = useCallback(
-    (channel: string) => {
-      console.log(`Disconnected from realtime channel: ${channel}`);
-      setIsConnected(false);
+  const handleDisconnect = useCallback(() => {
+    setIsConnected(false);
+    setConnectionStatus('disconnected');
+
+    // Prevent reconnection storm
+    if (isReconnecting.current) {
+      return;
+    }
+
+    // Keep trying with longer delays - it eventually connects
+    if (reconnectAttemptsRef.current < 10) {
+      // Increased from 3 to 10 attempts
+      setConnectionStatus('connecting');
+      isReconnecting.current = true;
+
+      reconnectTimeoutRef.current = setTimeout(
+        () => {
+          reconnectAttemptsRef.current++;
+          isReconnecting.current = false;
+          connect();
+        },
+        reconnectDelayMs + reconnectAttemptsRef.current * 1000
+      );
+    } else {
+      console.warn('⚠️ Realtime connection failed. Using polling mode.');
       setConnectionStatus('disconnected');
-
-      // Only attempt to reconnect if we haven't exceeded max attempts and it wasn't a manual disconnect
-      if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-        console.log(
-          `Attempting to reconnect (attempt ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`
-        );
-        setConnectionStatus('connecting');
-
-        // Prevent reconnection storm
-        if (isReconnecting.current) {
-          console.log('⏸️ Reconnection already in progress, skipping...');
-          return;
-        }
-
-        isReconnecting.current = true;
-        reconnectTimeoutRef.current = setTimeout(
-          () => {
-            reconnectAttemptsRef.current++;
-            isReconnecting.current = false;
-            connect();
-          },
-          reconnectDelayMs + reconnectAttemptsRef.current * 2000 // Longer backoff to prevent resource exhaustion
-        );
-      } else {
-        console.warn(
-          '⚠️ Max reconnection attempts reached, disabling realtime. Polling fallback active.'
-        );
-        setConnectionStatus('disconnected');
-        isReconnecting.current = false;
-      }
-    },
-    [onError]
-  );
+      isReconnecting.current = false;
+    }
+  }, [onError]);
 
   const connect = useCallback(async () => {
     try {
+      // If we've already failed too many times, don't try again
+      if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+        console.warn('⚠️ Realtime disabled after max attempts. Using polling mode.');
+        setConnectionStatus('disconnected');
+        setIsConnected(false);
+        return;
+      }
+
       // Disconnect existing connection if any
       if (connectionRef.current) {
         await connectionRef.current.disconnect();
       }
 
       setConnectionStatus('connecting');
-      console.log(`Connecting to realtime channel: ${channelName}`);
+      // Reduced logging noise
 
       const connection = await connectRealtime({
         channel: channelName,

@@ -49,6 +49,13 @@ export class AdminManager {
   }
 
   /**
+   * Verifies admin key (async version for consistency with other methods)
+   */
+  static async verifyAdminKey(providedKey: string): Promise<boolean> {
+    return this.validateAdminKey(providedKey);
+  }
+
+  /**
    * Manually advances story to next chapter
    */
   static async advanceStory(

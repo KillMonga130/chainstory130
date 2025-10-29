@@ -2,28 +2,56 @@
 
 A collaborative horror story experience built with Devvit Web where the Reddit community shapes a spine-chilling narrative together through democratic choice-based voting! This is an advanced interactive storytelling platform that combines real-time voting, atmospheric horror design, and sophisticated state management to create a unique community-driven narrative experience.
 
+**🎮 Play Now:** Install the app on your subreddit and watch as your community collectively writes a branching horror story, one vote at a time!
+
+---
+
 ## 🎮 What This Game Is
 
-**The Haunted Thread** is a real-time collaborative horror storytelling experience where Reddit users collectively write a branching horror story through democratic voting. Each chapter presents the community with multiple atmospheric story choices, and the winning vote determines how the nightmare unfolds.
+**The Haunted Thread** is a real-time collaborative horror storytelling experience where Reddit users collectively write a branching horror story through democratic voting. The game presents a mysterious narrative about a haunted Reddit thread that exists across time and reality, where players discover they've become part of an impossible story spanning 50 years.
 
-The game creates an immersive horror atmosphere where players:
+### The Story Premise
 
-- **Read atmospheric chapters** with flickering title animations (`flicker-animation`), dynamic particle effects (fog, shadows, embers, blood drops via `ParticleEffects` component), and spine-chilling descriptions rendered through the `StoryChapter` component
-- **Vote on story directions** with live vote counts and real-time updates showing how the collective narrative is being shaped through the `VotingInterface` component with animated progress bars
-- **Experience branching narratives** where community decisions lead to different horror endings (good, bad, neutral, or twist) managed by the `StoryContentManager`
-- **Track story progression** through visual progress indicators (`StoryProgress` component) showing completed chapters and narrative paths taken with dot-based navigation and percentage completion
+You stumble upon an old Reddit thread titled "HELP - Something is wrong with my house" posted 50 years ago—before Reddit even existed. As you read through deleted accounts and impossible timestamps, you realize the thread is responding to you personally. Your username appears in conversations you never had. The screen flickers with a chilling message: "Welcome back. We've been waiting."
 
-Built as a React-based Devvit Web application, The Haunted Thread runs directly within Reddit posts, allowing seamless community participation without leaving the platform. The game features sophisticated real-time synchronization via `useRealtime` hook with WebSocket connections, optimistic UI updates through `useSynchronizedState`, and comprehensive error handling via `ErrorBoundary` components to ensure a smooth collaborative experience even with hundreds of simultaneous participants.
+### Core Gameplay
+
+The game creates an immersive horror atmosphere where the community:
+
+- **Reads atmospheric chapters** with flickering title animations, dynamic particle effects (fog, shadows, embers, blood drops), and spine-chilling descriptions that unfold the mystery of the haunted house at 1247 Elm Street
+- **Votes on story directions** with live vote counts and real-time updates showing how the collective narrative is being shaped through animated progress bars and percentage tracking
+- **Experiences branching narratives** where community decisions lead to multiple story paths and different horror endings (good, bad, neutral, or twist) including "The Digital Guardian," "Forever Online," "The Ultimate Upload," and "The New Network"
+- **Tracks story progression** through visual progress indicators showing completed chapters, narrative paths taken, and overall completion percentage with dot-based navigation
+
+Built as a React-based Devvit Web application, The Haunted Thread runs directly within Reddit posts, allowing seamless community participation without leaving the platform. The game features sophisticated real-time synchronization via WebSocket connections, optimistic UI updates, and comprehensive error handling to ensure a smooth collaborative experience even with hundreds of simultaneous participants.
+
+**The Haunted Thread** is a real-time collaborative horror storytelling experience where Reddit users collectively write a branching horror story through democratic voting. The game presents a mysterious narrative about a haunted Reddit thread that exists across time and reality, where players discover they've become part of an impossible story spanning 50 years.
+
+### The Story Premise
+
+You stumble upon an old Reddit thread titled "HELP - Something is wrong with my house" posted 50 years ago—before Reddit even existed. As you read through deleted accounts and impossible timestamps, you realize the thread is responding to you personally. Your username appears in conversations you never had. The screen flickers with a chilling message: "Welcome back. We've been waiting."
+
+### Core Gameplay
+
+The game creates an immersive horror atmosphere where the community:
+
+- **Reads atmospheric chapters** with flickering title animations, dynamic particle effects (fog, shadows, embers, blood drops), and spine-chilling descriptions that unfold the mystery of the haunted house at 1247 Elm Street
+- **Votes on story directions** with live vote counts and real-time updates showing how the collective narrative is being shaped through animated progress bars and percentage tracking
+- **Experiences branching narratives** where community decisions lead to multiple story paths and different horror endings (good, bad, neutral, or twist) including "The Digital Guardian," "Forever Online," "The Ultimate Upload," and "The New Network"
+- **Tracks story progression** through visual progress indicators showing completed chapters, narrative paths taken, and overall completion percentage with dot-based navigation
+
+Built as a React-based Devvit Web application, The Haunted Thread runs directly within Reddit posts, allowing seamless community participation without leaving the platform. The game features sophisticated real-time synchronization via WebSocket connections, optimistic UI updates, and comprehensive error handling to ensure a smooth collaborative experience even with hundreds of simultaneous participants.
 
 ## 🌟 What Makes This Game Innovative & Unique
 
 ### 🏛️ True Democratic Storytelling
 
-Unlike traditional choose-your-own-adventure games where one person makes decisions, **The Haunted Thread** creates stories through genuine community consensus. Every narrative direction is determined by collective voting using the `VotingManager` with Redis-based transaction-safe vote storage, making each story truly representative of the community's choices and creating a unique democratic storytelling experience where:
+Unlike traditional choose-your-own-adventure games where one person makes decisions, **The Haunted Thread** creates stories through genuine community consensus. Every narrative direction is determined by collective voting with Redis-based transaction-safe vote storage, making each story truly representative of the community's choices and creating a unique democratic storytelling experience where:
 
-- **Every vote matters**: The community collectively decides the story's direction through the `castVote` function with duplicate prevention via Redis transactions
-- **No single player controls the narrative**: The story unfolds based on majority consensus calculated by `getVoteCounts` with real-time percentage tracking
-- **Shared ownership**: Everyone contributes to creating a unique horror tale together, with all decisions tracked in `StoryContext` and stored in Redis with 24-hour TTL
+- **Every vote matters**: The community collectively decides the story's direction through secure voting with duplicate prevention via Redis transactions
+- **No single player controls the narrative**: The story unfolds based on majority consensus with real-time percentage tracking showing the community's collective will
+- **Shared ownership**: Everyone contributes to creating a unique horror tale together, with all decisions tracked and stored in Redis with 24-hour TTL
+- **Meta-narrative horror**: The story itself is about a haunted Reddit thread, creating a unique blend of digital horror and community storytelling that breaks the fourth wall
 
 ### ⚡ Real-Time Collaborative Experience
 
@@ -42,11 +70,25 @@ Unlike traditional choose-your-own-adventure games where one person makes decisi
 
 ### 🌿 Sophisticated Branching Narratives
 
-- **Multiple Story Paths**: Complex branching system managed by `StoryContentManager` with `getAllBranches()` method leading to different horror endings (good, bad, neutral, twist) determined by `pathRequirements` matching
-- **Contextual Storytelling**: Each chapter builds on previous community choices through `StoryContext` tracking (`previousChoices`, `pathTaken`, `userVotes` fields), creating coherent narrative continuity stored in Redis with `StoryStateManager.storeStoryContext`
-- **Path Tracking**: Visual progress indicators (`StoryProgress` component with `progress-dot` elements) show the journey through the story with completed (orange), current (red with glow), and upcoming (gray) narrative branches
-- **Story Replay System**: `StoryReplay` component with `getStoryReplay` method allows exploring alternative narrative paths and seeing how different choices affect outcomes, with completed paths tracked via `getCompletedPaths`
-- **History Tracking**: Complete decision timeline stored in Redis via `addToHistory` showing all previous chapters and community voting results, retrievable through `getStoryHistory` with timestamp sorting
+- **Multiple Story Paths**: Complex branching system with 10+ unique story branches including:
+  - **Opening**: "The Haunted Thread" - Discovery of the impossible Reddit thread
+  - **Investigation Path**: "Down the Digital Rabbit Hole" - Uncovering the house's secrets
+  - **Escape Attempt**: "No Escape" - Trying to break free from the digital trap
+  - **Engagement Path**: "Joining the Conversation" - Becoming part of the story
+  - **House Arrival**: "The House on Elm Street" - Confronting the source
+  - **House Interior**: "Inside the Impossible" - Exploring the reality-defying house
+  - **Revelation Path**: "The Truth Unveiled" - Learning the house's true nature
+  - **Cycle Breaking**: "Breaking the Chain" - Attempting to free all trapped souls
+  - **Final Battle**: "The Last Stand" - The ultimate confrontation
+- **Seven Unique Endings**: Multiple conclusion types including:
+  - **Good Endings**: "The Ultimate Upload" (heroic sacrifice freeing all), "The New Network" (transforming horror into healing)
+  - **Bad Endings**: "The Futile Flight" (failed escape attempt), "Forever Online" (eternal digital imprisonment)
+  - **Neutral Endings**: "The Digital Guardian" (accepting the caretaker role), "The Lone Wolf's Gambit" (partial success with sacrifice)
+  - **Twist Ending**: "Digital Apocalypse" (destroying the internet to break free)
+- **Contextual Storytelling**: Each chapter builds on previous community choices, creating coherent narrative continuity with decisions affecting available paths and endings
+- **Path Tracking**: Visual progress indicators show the journey through the story with completed (orange), current (red with glow), and upcoming (gray) narrative branches
+- **Story Replay System**: Allows exploring alternative narrative paths and seeing how different choices affect outcomes, with completed paths tracked for replay value
+- **History Tracking**: Complete decision timeline showing all previous chapters and community voting results with timestamps
 
 ### 🛡️ Advanced Technical Architecture
 
@@ -71,71 +113,79 @@ Unlike traditional choose-your-own-adventure games where one person makes decisi
 
    - Find The Haunted Thread post in your Reddit feed
    - Click the "Play" button to open the game in full-screen mode within Reddit's webview
-   - The game loads with atmospheric horror styling and dynamic particle effects managed by the `ParticleEffects` component (fog and shadows with low/medium intensity)
-   - The main `App` component initializes with the `LoadingProvider` (for loading state management) and `ModerationProvider` (for content moderation) contexts
-   - Initial story data is fetched via `useStory` hook calling `/api/story/current` endpoint
+   - The game loads with atmospheric horror styling featuring:
+     - Flickering title: "The Haunted Thread"
+     - Dynamic particle effects (fog and shadows drifting across the screen)
+     - Dark, ominous color scheme with blood-red accents
+     - Eerie typography designed to enhance the horror atmosphere
 
 2. **📖 Read the Current Chapter**:
 
-   - Each story chapter displays through the `StoryChapter` component with horror-themed styling including:
-     - **Flickering Title Animations**: Chapter titles use the `flicker-animation` CSS keyframes (10-step opacity variations from 0.7 to 1.0) to create an eerie atmosphere
-     - **Rich Narrative Content**: Immersive horror descriptions automatically split into readable paragraphs using `content.split('\n').map()` rendering
-     - **Dynamic Visual Effects**: The `VisualEffects` component renders fog, shadows, embers, and other atmospheric elements from `chapter.visualElements.atmosphericEffects` array that respond to story intensity levels
-     - **Horror Typography**: Custom fonts (Creepster via `--horror-font-primary` for titles, Crimson Text via `--horror-font-body` for body) enhance the spooky mood
+   - Each story chapter presents a new part of the haunting narrative:
+     - **Opening Chapter**: You discover an impossible Reddit thread posted 50 years before Reddit existed, with your username appearing in conversations you never had
+     - **Flickering Titles**: Chapter titles flicker like a dying light bulb, creating an unsettling atmosphere
+     - **Rich Narrative**: Immersive horror descriptions split into readable paragraphs that draw you deeper into the mystery
+     - **Visual Effects**: Atmospheric elements like fog, shadows, and other effects that intensify as the story progresses
+     - **Horror Typography**: Custom creepy fonts that enhance the spooky mood
 
 3. **📊 Track Your Progress**:
-   - The `StoryProgress` component shows visual indicators of your journey through the story using `StoryProgression` data
-   - **Progress Bar**: Animated fill showing percentage completion (calculated from `Math.round((currentPosition / totalChapters) * 100)`)
-   - **Chapter Dots**: Dot-based navigation showing completed (orange with `.completed` class), current (red with glow via `.active` class), and upcoming (gray default) chapters
-   - **Path Information**: Display of narrative paths taken (`completedPaths` array) and available branches (`availablePaths` array) from `StoryProgression` interface
-   - **Chapter Counter**: Shows current chapter number and total chapters (e.g., "Chapter 3 of 10") with orange highlighting for current position
+   - Visual indicators show your journey through the branching narrative:
+     - **Progress Bar**: Animated bar showing your completion percentage through the story
+     - **Chapter Dots**: Interactive dots showing completed chapters (orange), current chapter (glowing red), and upcoming chapters (gray)
+     - **Path Information**: See which narrative paths you've taken and which branches are still available
+     - **Chapter Counter**: Current chapter number out of total chapters (e.g., "Chapter 3 of 10")
 
 ### 🗳️ Making Your Choice
 
 4. **👀 Review Your Options**:
 
-   - The `VotingInterface` component presents multiple story choices (typically 2-4 options) with detailed information:
-     - **Choice Text**: The main action or decision displayed in bold with horror-themed styling
-     - **Description**: Additional context about the choice's implications (optional field)
-     - **Consequences**: Hints about potential story outcomes shown in italicized text (optional field)
-     - **Live Vote Counts**: Real-time vote tallies and percentages with animated progress bars (`vote-progress-bar` and `vote-progress-fill` classes)
+   - Each chapter presents multiple story choices (typically 2-4 options) with detailed information:
+     - **Choice Text**: The main action or decision (e.g., "Continue reading the thread," "Close the browser immediately," "Post a reply to the thread")
+     - **Description**: Additional context about what this choice means (e.g., "Dive deeper into the mysterious posts")
+     - **Consequences**: Hints about potential story outcomes (e.g., "May uncover disturbing truths")
+     - **Live Vote Counts**: Real-time vote tallies showing how many people chose each option
+     - **Vote Percentages**: Animated progress bars showing the percentage of votes for each choice
      - **Total Votes**: Community participation counter showing total votes across all choices
 
 5. **🎯 Cast Your Vote**:
 
    - Click on a choice button to vote for how you want the story to continue
-   - **Interactive Buttons**: Touch-friendly buttons (44px minimum size) with hover effects and horror-themed styling using the `voting-button` class
-   - **Real-Time Feedback**: Instant visual confirmation through optimistic updates managed by `useSynchronizedState` hook
-   - **Vote Validation**: The `VotingManager` prevents duplicate voting with clear user feedback ("You have cast your vote. Waiting for others...")
-   - **Loading States**: The `LoadingSpinner` component shows "Casting your vote..." during processing
+   - **Interactive Buttons**: Large, touch-friendly buttons with hover effects and horror-themed styling
+   - **Real-Time Feedback**: Your vote appears instantly with visual confirmation (glowing red border)
+   - **Vote Validation**: The system prevents duplicate voting - you can only vote once per chapter
+   - **Clear Status**: See "You have cast your vote. Waiting for others..." message after voting
+   - **Loading States**: Horror-themed loading spinner appears while your vote is being processed
 
 6. **✅ Confirm Your Selection**:
-   - Your choice immediately highlights with the `selected glow-animation` classes
-   - The system provides instant visual feedback through `applyOptimisticUpdate` before server confirmation
-   - Error recovery handles network issues with automatic retry mechanisms (up to 2 retries with exponential backoff)
-   - If the vote fails, the system automatically rolls back the optimistic update using `rollbackOptimisticUpdate`
+   - Your chosen option immediately highlights with a glowing red animation
+   - The system provides instant visual feedback before server confirmation
+   - Vote counts update in real-time as other community members cast their votes
+   - If there's a network issue, the system automatically retries with error recovery
+   - Once voting is complete, the winning choice is highlighted and the story advances
 
 ### 📊 Following the Story
 
 7. **📈 Watch Real-Time Updates**:
 
-   - Observe live vote counts and percentages as other Reddit users make their choices through the `useRealtime` hook:
-     - **Live Vote Counts**: See exact vote numbers for each choice updated via `handleVoteUpdate` callback
-     - **Animated Progress Bars**: Visual representation of community consensus with smooth width transitions
-     - **Percentage Tracking**: Real-time calculation of vote distribution (e.g., "45.2%") with automatic updates
-     - **Fallback Polling**: If real-time connection fails, the system automatically polls every 3 seconds using `refreshVoteCounts`
+   - Observe live vote counts and percentages as other Reddit users make their choices:
+     - **Live Vote Counts**: See exact vote numbers for each choice update in real-time
+     - **Animated Progress Bars**: Visual representation of community consensus with smooth animations
+     - **Percentage Tracking**: Real-time calculation of vote distribution (e.g., "45.2%")
+     - **Connection Status**: See if you're connected to live updates or using polling mode
+     - **Fallback Polling**: If real-time connection fails, the system automatically polls every 3 seconds to keep you updated
 
 8. **🔄 Experience Story Transitions**:
 
-   - When voting concludes, experience smooth transitions managed by the `ChapterTransition` component:
+   - When voting concludes, experience smooth transitions to the next chapter:
      - **Winner Announcement**: The choice with the highest vote count is highlighted
-     - **Chapter Transitions**: Smooth animations using the `chapter-transition` and `horror-entrance` CSS classes
-     - **Story Continuation**: Automatic progression to the next chapter based on community decision via `handleChapterTransition`
-     - **State Updates**: The `StoryStateManager` updates the current chapter and adds the decision to story history
+     - **Smooth Animations**: Horror-themed transitions with fading, scaling, and filter effects
+     - **Story Continuation**: Automatic progression to the next chapter based on the community's decision
+     - **New Choices**: Each new chapter presents fresh decisions based on the path taken
+     - **Branching Paths**: Your collective choices determine which story branches you explore
 
 9. **📚 View Story History**:
-   - Access the expandable `StoryHistory` sidebar (toggle button in top-right) to see:
-     - **Complete Chapter History**: All previous chapters with full content retrieved from Redis
+   - Access the expandable Story History sidebar (toggle button in top-right) to see:
+     - **Complete Chapter History**: All previous chapters with full content
      - **Decision Timeline**: Community voting results for each chapter showing winning choices
      - **Narrative Path Analysis**: Visual representation of how choices led to the current story state
      - **Vote Statistics**: Detailed vote counts and participation data for each decision point
@@ -144,80 +194,95 @@ Unlike traditional choose-your-own-adventure games where one person makes decisi
 
 10. **⚡ Instant Feedback System**:
 
-    - **Optimistic Updates**: Votes appear instantly through `applyOptimisticUpdate` with visual confirmation before server response
-    - **Conflict Resolution**: Automatic rollback via `rollbackOptimisticUpdate` if server conflicts occur
-    - **Loading States**: The `LoadingContext` provides clear feedback during processing with horror-themed spinners from the `LoadingSpinner` component
-    - **Progress Tracking**: Optional progress bars show operation completion percentage
+    - **Optimistic Updates**: Your votes appear instantly with visual confirmation before server response
+    - **Conflict Resolution**: Automatic rollback if server conflicts occur, restoring previous state seamlessly
+    - **Loading States**: Clear feedback during processing with horror-themed loading spinners
+    - **Progress Tracking**: Progress bars show operation completion percentage with smooth animations
 
 11. **🔄 Connection Management**:
 
-    - **Connection Status Indicators**: The `ConnectionStatusIndicator` component shows real-time connection status (connecting, connected, disconnected, error)
-    - **Automatic Reconnection**: Exponential backoff retry logic (5-second base delay, max 3 attempts) for failed connections
-    - **Fallback Polling**: Automatic switch to polling mode (3-second intervals) when real-time fails, with clear user notification
-    - **Manual Reconnect**: User-initiated reconnection attempts via the "Retry Live Updates" button
-    - **Network Monitoring**: The `ConnectionMonitor` utility tracks online/offline status
+    - **Connection Status Indicators**: Real-time connection status display:
+      - 🟢 **Connected**: Live updates active
+      - 🟡 **Connecting**: Establishing connection
+      - 🟠 **Disconnected**: Using polling mode (updates every 3 seconds)
+      - 🔴 **Error**: Connection failed
+    - **Automatic Reconnection**: System automatically attempts to reconnect with exponential backoff
+    - **Fallback Polling**: Automatic switch to polling mode when real-time connection fails
+    - **Manual Reconnect**: "Retry Live Updates" button to manually reconnect
+    - **Network Monitoring**: Tracks online/offline status and notifies you of connection changes
 
 12. **🛡️ Error Recovery**:
-    - **Graceful Degradation**: The `ErrorBoundary` component ensures the game remains playable even with network issues
-    - **Clear Error Messages**: User-friendly error descriptions through the `ErrorReporting` utility with context information
-    - **Retry Mechanisms**: Automatic retries (up to 2 attempts) with exponential backoff for failed API calls via `ApiClient`
-    - **Timeout Handling**: 10-second default timeout for API requests with clear timeout error messages
+    - **Graceful Degradation**: Game remains playable even with network issues
+    - **Clear Error Messages**: User-friendly error descriptions with helpful context
+    - **Automatic Retries**: Failed operations automatically retry with exponential backoff
+    - **Timeout Handling**: 10-second timeout for operations with clear timeout messages
+    - **Error Boundaries**: Comprehensive error catching prevents the entire app from crashing
 
 ### 🎬 Story Completion & Exploration
 
 13. **🎭 Experience Multiple Endings**:
 
-    - The branching narrative system managed by `StoryContentManager` leads to various conclusions:
-      - **Good Ending**: Community choices lead to positive story resolution (type: 'good')
-      - **Bad Ending**: Dark decisions result in tragic or horrifying outcomes (type: 'bad')
-      - **Neutral Ending**: Balanced choices create ambiguous conclusions (type: 'neutral')
-      - **Twist Ending**: Unexpected revelations that completely reframe the story (type: 'twist')
-    - Endings are determined by the `pathRequirements` field matching the community's decision path
+    - The branching narrative system leads to seven unique conclusions:
+      - **Good Endings**:
+        - "The Ultimate Upload" - Sacrifice yourself to free all trapped souls, becoming the internet itself
+        - "The New Network" - Transform the haunted house into a healing sanctuary for lost digital souls
+      - **Bad Endings**:
+        - "The Futile Flight" - Your escape attempt fails, trapping you in the digital void forever
+        - "Forever Online" - Become another voice in the eternal Reddit thread, warning future victims
+      - **Neutral Endings**:
+        - "The Digital Guardian" - Accept your role as caretaker, finding purpose in the impossible
+        - "The Lone Wolf's Gambit" - Scatter your consciousness across the internet as a guardian angel
+      - **Twist Ending**:
+        - "Digital Apocalypse" - Destroy the house but accidentally end the internet itself
+    - Endings are determined by the community's collective decision path throughout the story
 
 14. **🌿 Explore Different Paths**:
 
-    - **Story Reset Functionality**: The `StoryReplay` component allows exploring alternative narratives
-    - **Path Comparison**: View how different choice combinations affect outcomes through `getAlternativeBranches`
-    - **Branch Exploration**: Discover alternative narrative routes with the `getAllBranches` method
-    - **Completed Path Tracking**: The system tracks completed paths in Redis for replay value
-    - **Administrative Controls**: Admins can reset stories via the `AdminInterface` component
+    - **Story Reset Functionality**: Admins can reset the story to explore alternative narratives
+    - **Path Comparison**: View how different choice combinations affect outcomes
+    - **Branch Exploration**: Discover alternative narrative routes and see what could have been
+    - **Completed Path Tracking**: System tracks completed paths for replay value
+    - **Administrative Controls**: Admins can reset stories via the "🔄 Reset Story" button (requires admin key)
 
 15. **🏆 Share the Experience**:
-    - Completed stories become permanent Reddit community artifacts stored in Redis
-    - **Story Persistence**: Full narrative history stored via `StoryStateManager` with 24-hour TTL (7 days for completed paths)
+    - Completed stories become permanent Reddit community artifacts:
+    - **Story Persistence**: Full narrative history stored with 24-hour TTL (7 days for completed paths)
     - **Community Discussion**: Stories can be shared and discussed within Reddit comments
-    - **Replay Value**: Previous stories can be revisited through `getStoryReplay` method
-    - **Statistics Tracking**: View story stats including total chapters, history length, and story age via `getStoryStats`
+    - **Replay Value**: Previous stories can be revisited to see different outcomes
+    - **Statistics Tracking**: View story stats including total chapters, participation rates, and engagement metrics
 
 ### 🛡️ Community Features
 
 16. **📝 Content Moderation**:
 
-    - **Report Content**: The `ContentReportButton` component provides one-click reporting for inappropriate material
-    - **Community Safety**: The `ContentModerator` validates content and tracks reports with status tracking (pending, reviewing, resolved, dismissed)
-    - **Administrative Controls**: The `AdminInterface` provides comprehensive management tools for moderators
-    - **Content Validation**: Automatic content filtering before posting via `validateContent` method
+    - **Report Content**: One-click reporting button for inappropriate material
+    - **Community Safety**: Content validation and report tracking with status updates (pending, reviewing, resolved, dismissed)
+    - **Administrative Controls**: Comprehensive management tools for moderators with admin key validation
+    - **Content Validation**: Automatic content filtering before posting
 
 17. **👑 Administrative Features** (for moderators):
-    - **Story Management**: Manual story advancement via `/api/admin/advance` and reset capabilities via `/api/admin/reset`
-    - **Performance Monitoring**: Real-time system performance metrics through `/api/admin/performance` endpoint
+    - **Story Management**: Manual story advancement and reset capabilities (requires admin key)
+    - **Performance Monitoring**: Real-time system performance metrics for server, Redis, and realtime connections
     - **User Management**: Administrative oversight of user interactions and voting patterns
-    - **Moderation Queue**: Review reported content through `/api/admin/reports` endpoint
-    - **Admin Logs**: Track all administrative actions via `getAdminLogs` method
+    - **Moderation Queue**: Review reported content with status tracking and moderator notes
+    - **Admin Logs**: Track all administrative actions with timestamped log entries
     - **Statistics Dashboard**: View comprehensive story statistics including vote counts, participation rates, and engagement metrics
 
 ### 💡 Pro Tips for Best Experience
 
-- **📱 Mobile Optimized**: Works seamlessly on both desktop and mobile devices with touch-friendly voting buttons (44px minimum size via `.horror-button` class), responsive design using Tailwind CSS, and optimized performance for mobile browsers. Particle effects are disabled on mobile for better performance.
-- **🔄 Real-Time Sync**: Experience live updates through the `useRealtime` hook without page refreshes. You'll see other votes appearing in real-time as the community makes decisions via WebSocket connections (with automatic fallback to 3-second polling if WebSocket fails).
-- **🎨 Visual Immersion**: Pay attention to the atmospheric effects managed by the `ParticleEffects` component - they dynamically respond to story intensity levels (low, medium, high) and help create an immersive horror experience with fog, shadows, embers, and blood drops.
-- **📖 Read Carefully**: Each chapter builds on previous community choices tracked in `StoryContext`, so understanding the narrative context enhances your participation in the collaborative storytelling. The `StoryHistory` sidebar shows the complete decision timeline.
-- **🤝 Community Engagement**: Remember that this is truly collaborative storytelling managed by the `VotingManager` - every vote matters and contributes to shaping a unique narrative experience for the entire community. The system prevents duplicate voting and tracks all user votes.
+- **📱 Mobile Optimized**: Works seamlessly on both desktop and mobile devices with touch-friendly voting buttons, responsive design, and optimized performance. Particle effects are automatically disabled on mobile for better performance.
+- **🔄 Real-Time Sync**: Experience live updates without page refreshes. You'll see other votes appearing in real-time as the community makes decisions. If real-time connection fails, the system automatically switches to polling mode (updates every 3 seconds).
+- **🎨 Visual Immersion**: Pay attention to the atmospheric effects - they dynamically respond to story intensity levels and help create an immersive horror experience with fog, shadows, embers, and blood drops that intensify as the story progresses.
+- **📖 Read Carefully**: Each chapter builds on previous community choices, so understanding the narrative context enhances your participation in the collaborative storytelling. Use the Story History sidebar to review the complete decision timeline.
+- **🤝 Community Engagement**: Remember that this is truly collaborative storytelling - every vote matters and contributes to shaping a unique narrative experience for the entire community. The system prevents duplicate voting, so choose wisely!
 - **🎭 Horror Atmosphere**: Immerse yourself in the carefully crafted horror atmosphere with:
-  - **Flickering animations**: Text and elements that create an eerie feeling using CSS classes like `flicker-animation`, `glow-animation`, and `shake-animation`
-  - **Horror typography**: Specially chosen fonts (Creepster, Nosifer, Crimson Text) that enhance the spooky mood through CSS variables like `--horror-font-primary` and `--horror-font-secondary`
-  - **Dynamic particle effects**: Visual elements that respond to the story's intensity with different opacity levels and animation speeds
-  - **Color schemes**: Dark themes with strategic use of red (#8B0000), orange (#FF4500), and shadow colors defined in CSS variables like `--horror-red` and `--horror-blood-red`
+  - **Flickering animations**: Text and elements that create an eerie feeling
+  - **Horror typography**: Specially chosen creepy fonts (Creepster for titles, Crimson Text for body text)
+  - **Dynamic particle effects**: Visual elements that respond to the story's intensity
+  - **Color schemes**: Dark themes with strategic use of blood red, dark gray, and ominous shadows
+- **🕐 Timing**: Vote early to see your choice reflected in the community consensus. Late votes still count but may not change the outcome if one choice has a commanding lead.
+- **💬 Discuss**: Use Reddit comments to discuss the story with other players, share theories about what might happen next, and debate the best choices.
+- **🔄 Replay**: If you want to explore different story paths, ask an admin to reset the story (requires admin key). This lets the community experience alternative branches and endings.
 
 ### 🎮 Core Game Components
 

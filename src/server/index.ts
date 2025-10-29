@@ -568,6 +568,66 @@ router.post(
   })
 );
 
+// Reset voting for current chapter (admin only)
+router.post(
+  '/api/admin/reset-voting',
+  RateLimiter.middleware(5, 300000), // 5 requests per 5 minutes
+  validateRequest((req) => {
+    const { adminKey, chapterId } = req.body;
+    if (!adminKey || typeof adminKey !== 'string') {
+      throw new Error('adminKey is required and must be a string');
+    }
+    if (!chapterId || typeof chapterId !== 'string') {
+      throw new Error('chapterId is required and must be a string');
+    }
+  }),
+  asyncHandler(async (req, res): Promise<void> => {
+    const { adminKey, chapterId } = req.body;
+    const { postId } = context;
+
+    if (!postId) {
+      throw new ValidationError('postId is required but missing from context');
+    }
+
+    console.log(`Admin reset voting request: postId=${postId}, chapterId=${chapterId}`);
+
+    const { AdminManager } = await import('./core/admin-manager.js');
+
+    // Verify admin key
+    const isValid = await AdminManager.verifyAdminKey(adminKey);
+    if (!isValid) {
+      res.json({
+        success: false,
+        message: 'Invalid admin key',
+      });
+      return;
+    }
+
+    try {
+      // Reset voting for the chapter
+      await VotingManager.resetVotingForChapter(postId, chapterId);
+
+      ErrorLogger.logInfo('Voting reset by admin', {
+        postId,
+        chapterId,
+      });
+
+      res.json({
+        success: true,
+        message: 'Voting reset successfully',
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Failed to reset voting');
+      ErrorLogger.logError(err);
+
+      res.json({
+        success: false,
+        message: err.message,
+      });
+    }
+  })
+);
+
 // Get story statistics (admin only)
 router.get(
   '/api/admin/stats',

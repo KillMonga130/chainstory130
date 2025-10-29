@@ -13,7 +13,7 @@ import {
   AdminInterface,
   ContentReportButton,
 } from './components/index';
-import { LoadingOverlay, ConnectionStatusIndicator } from './components/LoadingOverlay';
+import { LoadingOverlay } from './components/LoadingOverlay';
 import { useStory } from './hooks/useStory';
 import { useVoting } from './hooks/useVoting';
 import { useRealtime } from './hooks/useRealtime';
@@ -29,6 +29,9 @@ const AppContent = () => {
   const [postId] = useState('haunted-thread-demo'); // This should come from Devvit context
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminKeyInput, setAdminKeyInput] = useState('');
+  const [showResetStoryModal, setShowResetStoryModal] = useState(false);
+  const [showResetVotingModal, setShowResetVotingModal] = useState(false);
+  const [resetAdminKey, setResetAdminKey] = useState('');
 
   const { showAdminInterface, setShowAdminInterface, adminKey, setAdminKey, moderationEnabled } =
     useModeration();
@@ -97,15 +100,12 @@ const AppContent = () => {
   // Fallback polling when realtime is not available
   useEffect(() => {
     if ((connectionStatus === 'disconnected' || connectionStatus === 'error') && currentChapter) {
-      console.log('Starting vote count polling as fallback for realtime');
       const pollInterval = setInterval(() => {
-        console.log('Polling vote counts and status for chapter:', currentChapter.id);
         refreshVoteCounts(currentChapter.id);
         refreshVoteStatus(currentChapter.id);
       }, 3000); // Poll every 3 seconds
 
       return () => {
-        console.log('Stopping vote count polling');
         clearInterval(pollInterval);
       };
     }
@@ -402,87 +402,233 @@ const AppContent = () => {
           </Transition>
         )}
 
-        {/* Story Reset Button */}
-        <div className="text-center mt-6 mb-4">
+        {/* Admin Controls */}
+        <div className="text-center mt-6 mb-4 flex gap-2 justify-center flex-wrap">
           <button
             className="horror-button-small opacity-50 hover:opacity-100 transition-opacity"
-            onClick={async () => {
-              const adminKey = prompt('Enter admin key to reset story:');
-              if (!adminKey) return;
-
-              try {
-                const response = await fetch('/api/admin/reset', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    adminKey,
-                    reason: 'Manual reset from UI',
-                  }),
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                  alert('Story reset successfully! Refreshing...');
-                  window.location.reload();
-                } else {
-                  alert('Reset failed: ' + result.message);
-                }
-              } catch (error) {
-                alert('Error resetting story: ' + error);
-              }
+            onClick={() => {
+              setResetAdminKey('');
+              setShowResetStoryModal(true);
             }}
             title="Reset story to beginning (requires admin key)"
           >
             🔄 Reset Story
           </button>
+
+          {currentChapter && (
+            <button
+              className="horror-button-small opacity-50 hover:opacity-100 transition-opacity"
+              onClick={() => {
+                setResetAdminKey('');
+                setShowResetVotingModal(true);
+              }}
+              title="Reset voting for current chapter (requires admin key)"
+            >
+              🗳️ Reset Voting
+            </button>
+          )}
         </div>
 
-        {/* Enhanced Connection Status */}
-        <Transition type="horror-fade">
-          <div className="connection-status-container">
-            <ConnectionStatusIndicator status={connectionStatus} className="mb-4" />
+        {/* Reset Story Modal */}
+        {showResetStoryModal && (
+          <div className="admin-login-modal">
+            <div className="admin-login-content">
+              <h3>Reset Story</h3>
+              <p className="horror-text text-sm mb-4">
+                This will reset the entire story to the beginning. All progress will be lost.
+              </p>
+              <div className="form-group">
+                <label>Admin Key:</label>
+                <input
+                  type="password"
+                  value={resetAdminKey}
+                  onChange={(e) => setResetAdminKey(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && resetAdminKey.trim()) {
+                      try {
+                        const response = await fetch('/api/admin/reset', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            adminKey: resetAdminKey,
+                            reason: 'Manual reset from UI',
+                          }),
+                        });
+                        const result = await response.json();
 
-            {/* Network status monitoring */}
-            {!ConnectionMonitor.getStatus() && (
-              <div className="horror-card text-center mt-2">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-horror-red">📡</span>
-                  <span className="horror-text text-horror-red text-sm">
-                    No internet connection detected
-                  </span>
-                </div>
+                        if (result.success) {
+                          window.location.reload();
+                        } else {
+                          alert('Reset failed: ' + result.message);
+                        }
+                      } catch (error) {
+                        alert('Error resetting story: ' + error);
+                      }
+                    }
+                  }}
+                  placeholder="Enter admin key"
+                  autoFocus
+                />
               </div>
-            )}
+              <div className="admin-login-actions">
+                <button
+                  onClick={async () => {
+                    if (!resetAdminKey.trim()) return;
 
-            {connectionStatus === 'disconnected' && (
-              <div className="horror-card text-center mt-2">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-horror-orange">🔄</span>
-                  <span className="horror-text text-horror-orange text-sm">
-                    Live updates unavailable - using polling mode
-                  </span>
-                  <button className="horror-button-small ml-2" onClick={reconnect}>
-                    Retry Live Updates
-                  </button>
-                </div>
-              </div>
-            )}
+                    try {
+                      const response = await fetch('/api/admin/reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          adminKey: resetAdminKey,
+                          reason: 'Manual reset from UI',
+                        }),
+                      });
+                      const result = await response.json();
 
-            {connectionStatus === 'error' && (
-              <div className="horror-card text-center mt-2">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-horror-red">💀</span>
-                  <span className="horror-text text-horror-red">
-                    The spirits are not responding
-                  </span>
-                  <button className="horror-button-small ml-2" onClick={reconnect}>
-                    Try Again
-                  </button>
-                </div>
+                      if (result.success) {
+                        window.location.reload();
+                      } else {
+                        alert('Reset failed: ' + result.message);
+                      }
+                    } catch (error) {
+                      alert('Error resetting story: ' + error);
+                    }
+                  }}
+                  disabled={!resetAdminKey.trim()}
+                >
+                  Reset Story
+                </button>
+                <button onClick={() => setShowResetStoryModal(false)}>Cancel</button>
               </div>
-            )}
+            </div>
           </div>
-        </Transition>
+        )}
+
+        {/* Reset Voting Modal */}
+        {showResetVotingModal && currentChapter && (
+          <div className="admin-login-modal">
+            <div className="admin-login-content">
+              <h3>Reset Voting</h3>
+              <p className="horror-text text-sm mb-4">
+                This will clear all votes for the current chapter and start a new voting session.
+              </p>
+              <div className="form-group">
+                <label>Admin Key:</label>
+                <input
+                  type="password"
+                  value={resetAdminKey}
+                  onChange={(e) => setResetAdminKey(e.target.value)}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter' && resetAdminKey.trim()) {
+                      try {
+                        const response = await fetch('/api/admin/reset-voting', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            adminKey: resetAdminKey,
+                            chapterId: currentChapter.id,
+                          }),
+                        });
+                        const result = await response.json();
+
+                        if (result.success) {
+                          window.location.reload();
+                        } else {
+                          alert('Reset failed: ' + result.message);
+                        }
+                      } catch (error) {
+                        alert('Error resetting voting: ' + error);
+                      }
+                    }
+                  }}
+                  placeholder="Enter admin key"
+                  autoFocus
+                />
+              </div>
+              <div className="admin-login-actions">
+                <button
+                  onClick={async () => {
+                    if (!resetAdminKey.trim()) return;
+
+                    try {
+                      const response = await fetch('/api/admin/reset-voting', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          adminKey: resetAdminKey,
+                          chapterId: currentChapter.id,
+                        }),
+                      });
+                      const result = await response.json();
+
+                      if (result.success) {
+                        window.location.reload();
+                      } else {
+                        alert('Reset failed: ' + result.message);
+                      }
+                    } catch (error) {
+                      alert('Error resetting voting: ' + error);
+                    }
+                  }}
+                  disabled={!resetAdminKey.trim()}
+                >
+                  Reset Voting
+                </button>
+                <button onClick={() => setShowResetVotingModal(false)}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enhanced Connection Status - Only show when there's an issue */}
+        {(connectionStatus === 'disconnected' ||
+          connectionStatus === 'error' ||
+          !ConnectionMonitor.getStatus()) && (
+          <Transition type="horror-fade">
+            <div className="connection-status-container">
+              {/* Network status monitoring */}
+              {!ConnectionMonitor.getStatus() && (
+                <div className="horror-card text-center mt-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-horror-red">📡</span>
+                    <span className="horror-text text-horror-red text-sm">
+                      No internet connection detected
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {connectionStatus === 'disconnected' && ConnectionMonitor.getStatus() && (
+                <div className="horror-card text-center mt-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-horror-orange">🔄</span>
+                    <span className="horror-text text-horror-orange text-sm">
+                      Live updates unavailable - using polling mode
+                    </span>
+                    <button className="horror-button-small ml-2" onClick={reconnect}>
+                      Retry Live Updates
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {connectionStatus === 'error' && (
+                <div className="horror-card text-center mt-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="text-horror-red">💀</span>
+                    <span className="horror-text text-horror-red">
+                      The spirits are not responding
+                    </span>
+                    <button className="horror-button-small ml-2" onClick={reconnect}>
+                      Try Again
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Transition>
+        )}
 
         {/* Processing Status */}
         {(isProcessing || hasOptimisticUpdates) && (

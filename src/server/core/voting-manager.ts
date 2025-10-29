@@ -509,6 +509,35 @@ export class VotingManager {
   }
 
   /**
+   * Resets voting for a chapter and creates a new voting session
+   */
+  static async resetVotingForChapter(postId: string, chapterId: string): Promise<void> {
+    try {
+      // Get the current session to preserve choice information
+      const session = await this.getVotingSession(postId, chapterId);
+      if (!session) {
+        throw new Error('Voting session not found for chapter');
+      }
+
+      // Clear all votes for this chapter
+      await this.clearChapterVotes(postId, chapterId);
+
+      // Create a new voting session with the same choices (default 60 minutes)
+      await this.createVotingSession(postId, chapterId, session.choices, 60);
+
+      ErrorLogger.logInfo('Voting reset for chapter', {
+        postId,
+        chapterId,
+        choiceCount: session.choices.length,
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error('Unknown error resetting voting');
+      ErrorLogger.logError(err);
+      throw err;
+    }
+  }
+
+  /**
    * Removes all voting data for a story
    * Note: This is a simplified version since we can't use pattern matching
    */
