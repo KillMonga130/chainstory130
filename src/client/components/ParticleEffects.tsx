@@ -9,7 +9,7 @@ interface ParticleEffectsProps {
 export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
   type = 'fog',
   intensity = 'medium',
-  className = ''
+  className = '',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -35,21 +35,24 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
 
   const getParticleCount = (intensity: string): number => {
     switch (intensity) {
-      case 'low': return 5;
-      case 'high': return 20;
-      default: return 10;
+      case 'low':
+        return 5;
+      case 'high':
+        return 20;
+      default:
+        return 10;
     }
   };
 
   const createParticle = (type: string, _: number): HTMLElement => {
     const particle = document.createElement('div');
     particle.className = `particle particle-${type}`;
-    
+
     // Random positioning
     const left = Math.random() * 100;
     const animationDelay = Math.random() * 5;
     const animationDuration = 3 + Math.random() * 4;
-    
+
     particle.style.left = `${left}%`;
     particle.style.animationDelay = `${animationDelay}s`;
     particle.style.animationDuration = `${animationDuration}s`;
@@ -78,11 +81,9 @@ export const ParticleEffects: React.FC<ParticleEffectsProps> = ({
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={`particle-effects particle-effects-${type} ${className}`}
-    >
-
-    </div>
+    ></div>
   );
 };

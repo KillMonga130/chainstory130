@@ -8,14 +8,17 @@ import { useContentValidation } from '../hooks/useContentValidation';
 
 interface ModerationContextType {
   // Content validation
-  validateContent: (content: string, contentType: 'chapter' | 'choice' | 'story') => Promise<{
+  validateContent: (
+    content: string,
+    contentType: 'chapter' | 'choice' | 'story'
+  ) => Promise<{
     isValid: boolean;
     filteredContent?: string;
     violations: string[];
     requiresApproval: boolean;
   }>;
   isValidating: boolean;
-  
+
   // Content reporting
   reportContent: (
     contentType: 'chapter' | 'choice' | 'story',
@@ -24,13 +27,13 @@ interface ModerationContextType {
     description?: string
   ) => Promise<{ success: boolean; reportId?: string; error?: string }>;
   isReporting: boolean;
-  
+
   // Admin interface
   showAdminInterface: boolean;
   setShowAdminInterface: (show: boolean) => void;
   adminKey: string;
   setAdminKey: (key: string) => void;
-  
+
   // Moderation state
   moderationEnabled: boolean;
   setModerationEnabled: (enabled: boolean) => void;
@@ -49,52 +52,53 @@ export const ModerationProvider: React.FC<ModerationProviderProps> = ({ children
   const [adminKey, setAdminKey] = useState('');
   const [moderationEnabled, setModerationEnabled] = useState(true);
 
-  const reportContent = useCallback(async (
-    contentType: 'chapter' | 'choice' | 'story',
-    contentId: string,
-    reason: string,
-    description?: string
-  ): Promise<{ success: boolean; reportId?: string; error?: string }> => {
-    setIsReporting(true);
+  const reportContent = useCallback(
+    async (
+      contentType: 'chapter' | 'choice' | 'story',
+      contentId: string,
+      reason: string,
+      description?: string
+    ): Promise<{ success: boolean; reportId?: string; error?: string }> => {
+      setIsReporting(true);
 
-    try {
-      const response = await fetch('/api/moderation/report', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contentType,
-          contentId,
-          reason,
-          description
-        })
-      });
+      try {
+        const response = await fetch('/api/moderation/report', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contentType,
+            contentId,
+            reason,
+            description,
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (data.success) {
-        return {
-          success: true,
-          reportId: data.data?.reportId
-        };
-      } else {
+        if (data.success) {
+          return {
+            success: true,
+            reportId: data.data?.reportId,
+          };
+        } else {
+          return {
+            success: false,
+            error: data.error || 'Failed to submit report',
+          };
+        }
+      } catch (err) {
         return {
           success: false,
-          error: data.error || 'Failed to submit report'
+          error: err instanceof Error ? err.message : 'Network error occurred',
         };
+      } finally {
+        setIsReporting(false);
       }
-
-    } catch (err) {
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : 'Network error occurred'
-      };
-
-    } finally {
-      setIsReporting(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const contextValue: ModerationContextType = {
     validateContent,
@@ -106,14 +110,10 @@ export const ModerationProvider: React.FC<ModerationProviderProps> = ({ children
     adminKey,
     setAdminKey,
     moderationEnabled,
-    setModerationEnabled
+    setModerationEnabled,
   };
 
-  return (
-    <ModerationContext.Provider value={contextValue}>
-      {children}
-    </ModerationContext.Provider>
-  );
+  return <ModerationContext.Provider value={contextValue}>{children}</ModerationContext.Provider>;
 };
 
 export const useModeration = (): ModerationContextType => {

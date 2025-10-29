@@ -21,26 +21,33 @@ export const useStory = (): UseStoryReturn => {
   const [votingActive, setVotingActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { startLoading, stopLoading, updateLoading } = useLoading();
 
   const fetchCurrentStory = useCallback(async () => {
     const loadingId = 'fetch-story';
-    
+
     try {
       startLoading(loadingId, 'Loading story chapter...', {
         type: 'loading',
-        timeout: 15000 // 15 second timeout
+        timeout: 15000, // 15 second timeout
       });
-      
+
       setError(null);
 
       const data: GetCurrentStoryResponse = await ApiClient.get('/api/story/current', {
         timeout: 10000, // 10 second timeout
-        retries: 2
+        retries: 2,
       });
 
       if (data.success && data.data) {
+        console.log('📖 Story data received from server:', {
+          chapterId: data.data.chapter?.id,
+          chapterTitle: data.data.chapter?.title,
+          votingActive: data.data.votingActive,
+          context: data.data.context,
+        });
+
         setCurrentChapter(data.data.chapter);
         setContext(data.data.context);
         setVotingActive(data.data.votingActive);
@@ -51,15 +58,15 @@ export const useStory = (): UseStoryReturn => {
           currentPosition: data.data.context.pathTaken.length,
           completedPaths: data.data.context.pathTaken,
           availablePaths: [], // This should be calculated based on current choices
-          progressPercentage: Math.round((data.data.context.pathTaken.length / 10) * 100)
+          progressPercentage: Math.round((data.data.context.pathTaken.length / 10) * 100),
         };
         setProgression(progression);
-        
+
         updateLoading(loadingId, {
           type: 'success',
-          message: 'Story loaded successfully'
+          message: 'Story loaded successfully',
         });
-        
+
         // Auto-hide success message
         setTimeout(() => stopLoading(loadingId), 1000);
       } else {
@@ -68,21 +75,21 @@ export const useStory = (): UseStoryReturn => {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
-      
+
       // Report error for monitoring
       ErrorReporting.reportError(err as Error, {
         operation: 'fetchCurrentStory',
-        url: '/api/story/current'
+        url: '/api/story/current',
       });
-      
+
       updateLoading(loadingId, {
         type: 'error',
-        message: `Failed to load story: ${errorMessage}`
+        message: `Failed to load story: ${errorMessage}`,
       });
-      
+
       // Auto-hide error after 5 seconds
       setTimeout(() => stopLoading(loadingId), 5000);
-      
+
       ClientPerformanceMonitor.recordMetric('story_fetch_error', 0, true);
     } finally {
       setLoading(false);
@@ -104,6 +111,6 @@ export const useStory = (): UseStoryReturn => {
     votingActive,
     loading,
     error,
-    refreshStory
+    refreshStory,
   };
 };

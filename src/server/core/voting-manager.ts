@@ -4,13 +4,13 @@
  */
 
 import { redis } from '@devvit/web/server';
-import { 
-  Vote, 
-  VotingSession, 
-  VoteResult, 
-  VoteCount, 
-  UserVoteStatus, 
-  VotingStats 
+import {
+  Vote,
+  VotingSession,
+  VoteResult,
+  VoteCount,
+  UserVoteStatus,
+  VotingStats,
 } from '../../shared/types/voting.js';
 import { RedisOptimizer } from '../utils/redis-optimizer';
 import { ErrorLogger, PerformanceMonitor, CircuitBreaker } from '../utils/error-handler';
@@ -20,11 +20,9 @@ export class VotingManager {
   private static readonly SESSION_PREFIX = 'haunted_thread:voting_session';
   private static readonly USER_VOTE_PREFIX = 'haunted_thread:user_vote';
   private static readonly VOTE_COUNT_PREFIX = 'haunted_thread:vote_count';
-  
-  // Circuit breakers for different operations
-  private static readonly voteCircuitBreaker = new CircuitBreaker(5, 30000, 'vote_operations');
-  private static readonly countCircuitBreaker = new CircuitBreaker(3, 15000, 'count_operations');
 
+  // Circuit breakers for different operations
+  private static readonly countCircuitBreaker = new CircuitBreaker(3, 15000, 'count_operations');
 
   /**
    * Casts a vote using Redis transactions to prevent race conditions
@@ -39,19 +37,19 @@ export class VotingManager {
     const voteCountKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:${choiceId}`;
     const totalVotesKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:total`;
     const uniqueVotersKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:unique_voters`;
-    
+
     try {
       // Use Redis transaction to ensure atomicity
       const txn = await redis.watch(userVoteKey);
       await txn.multi();
-      
+
       // Check if user has already voted
       const existingVote = await redis.get(userVoteKey);
       if (existingVote) {
         return {
           success: false,
           message: 'User has already voted for this chapter',
-          userPreviousVote: existingVote
+          userPreviousVote: existingVote,
         };
       }
 
@@ -60,7 +58,7 @@ export class VotingManager {
       if (!session || session.status !== 'active') {
         return {
           success: false,
-          message: 'Voting is not currently active for this chapter'
+          message: 'Voting is not currently active for this chapter',
         };
       }
 
@@ -69,18 +67,21 @@ export class VotingManager {
         userId,
         chapterId,
         choiceId,
-        timestamp: new Date()
+        timestamp: new Date(),
       };
 
       const voteKey = `${this.VOTE_PREFIX}:${postId}:${chapterId}:${userId}`;
-      
+
       // Execute transaction
       await txn.set(userVoteKey, choiceId);
       await txn.expire(userVoteKey, 86400); // 24 hours TTL
-      await txn.set(voteKey, JSON.stringify({
-        ...vote,
-        timestamp: vote.timestamp.toISOString()
-      }));
+      await txn.set(
+        voteKey,
+        JSON.stringify({
+          ...vote,
+          timestamp: vote.timestamp.toISOString(),
+        })
+      );
       await txn.expire(voteKey, 86400);
       await txn.incrBy(voteCountKey, 1);
       await txn.expire(voteCountKey, 86400);
@@ -93,18 +94,17 @@ export class VotingManager {
 
       // Get updated vote count
       const newVoteCount = await redis.get(voteCountKey);
-      
+
       return {
         success: true,
         message: 'Vote cast successfully',
-        voteCount: parseInt(newVoteCount || '0')
+        voteCount: parseInt(newVoteCount || '0'),
       };
-
     } catch (error) {
       console.error('Error casting vote:', error);
       return {
         success: false,
-        message: 'Failed to cast vote due to server error'
+        message: 'Failed to cast vote due to server error',
       };
     }
   }
@@ -115,7 +115,7 @@ export class VotingManager {
   static async getVoteCounts(postId: string, chapterId: string): Promise<VoteCount[]> {
     return this.countCircuitBreaker.execute(async () => {
       const stopTimer = PerformanceMonitor.startTimer('voting_get_counts');
-      
+
       try {
         // Get voting session to know available choices
         const session = await this.getVotingSessionCached(postId, chapterId);
@@ -124,18 +124,22 @@ export class VotingManager {
           return [];
         }
 
-        const choiceIds = session.choices.map(choice => choice.choiceId);
-        
+        const choiceIds = session.choices.map((choice) => choice.choiceId);
+
         // Use optimized batch retrieval
-        const voteCounts = await RedisOptimizer.getVoteCountsOptimized(postId, chapterId, choiceIds);
-        
+        const voteCounts = await RedisOptimizer.getVoteCountsOptimized(
+          postId,
+          chapterId,
+          choiceIds
+        );
+
         // Calculate percentages
         const totalVotes = voteCounts.reduce((sum, count) => sum + count.count, 0);
-        
+
         const result = voteCounts.map(({ choiceId, count }) => ({
           choiceId,
           count,
-          percentage: totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
+          percentage: totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0,
         }));
 
         stopTimer();
@@ -146,7 +150,7 @@ export class VotingManager {
         ErrorLogger.logWarning('Error getting vote counts', {
           postId,
           chapterId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         return [];
       }
@@ -160,23 +164,23 @@ export class VotingManager {
     try {
       const totalVotesKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:total`;
       const uniqueVotersKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:unique_voters`;
-      
+
       const [totalVotes, uniqueVotersData, session] = await Promise.all([
         redis.get(totalVotesKey),
         redis.hGetAll(uniqueVotersKey),
-        this.getVotingSession(postId, chapterId)
+        this.getVotingSession(postId, chapterId),
       ]);
-      
+
       const uniqueVoters = Object.keys(uniqueVotersData).length;
 
       if (!session) return null;
 
       const voteCounts = await this.getVoteCounts(postId, chapterId);
-      const winningChoice = voteCounts.reduce((prev, current) => 
+      const winningChoice = voteCounts.reduce((prev, current) =>
         current.count > prev.count ? current : prev
       );
 
-      const votingDuration = session.endTime 
+      const votingDuration = session.endTime
         ? session.endTime.getTime() - session.startTime.getTime()
         : Date.now() - session.startTime.getTime();
 
@@ -185,7 +189,7 @@ export class VotingManager {
         uniqueVoters: uniqueVoters || 0,
         votingDuration,
         winningChoice: winningChoice.choiceId,
-        winningPercentage: winningChoice.percentage
+        winningPercentage: winningChoice.percentage,
       };
     } catch (error) {
       console.error('Error getting voting stats:', error);
@@ -203,26 +207,26 @@ export class VotingManager {
   ): Promise<UserVoteStatus> {
     return this.countCircuitBreaker.execute(async () => {
       const stopTimer = PerformanceMonitor.startTimer('voting_check_user_voted');
-      
+
       try {
         // Use optimized cached lookup
         const result = await RedisOptimizer.getUserVoteStatusOptimized(postId, userId, chapterId);
-        
+
         // If user has voted, get additional timestamp info
         if (result.hasVoted && result.choiceId) {
           const voteKey = `${this.VOTE_PREFIX}:${postId}:${chapterId}:${userId}`;
           const voteData = await RedisOptimizer.getCached(voteKey, 30000); // 30 second cache
-          
+
           if (voteData) {
             try {
               const vote = JSON.parse(voteData);
-              result.timestamp = new Date(vote.timestamp);
+              (result as any).timestamp = new Date(vote.timestamp);
             } catch (error) {
               ErrorLogger.logWarning('Error parsing vote timestamp', {
                 postId,
                 userId,
                 chapterId,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : 'Unknown error',
               });
             }
           }
@@ -237,7 +241,7 @@ export class VotingManager {
           postId,
           userId,
           chapterId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         return { hasVoted: false };
       }
@@ -254,7 +258,7 @@ export class VotingManager {
     durationMinutes: number = 60
   ): Promise<VotingSession> {
     const sessionKey = `${this.SESSION_PREFIX}:${postId}:${chapterId}`;
-    
+
     const startTime = new Date();
     const endTime = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
 
@@ -264,49 +268,52 @@ export class VotingManager {
       endTime,
       status: 'active',
       totalVotes: 0,
-      choices: choices.map(choice => ({
+      choices: choices.map((choice) => ({
         choiceId: choice.choiceId,
         text: choice.text,
         voteCount: 0,
-        percentage: 0
-      }))
+        percentage: 0,
+      })),
     };
 
     const sessionData = {
       ...session,
       startTime: session.startTime.toISOString(),
-      endTime: session.endTime ? session.endTime.toISOString() : undefined
+      endTime: session.endTime ? session.endTime.toISOString() : undefined,
     };
 
     await redis.set(sessionKey, JSON.stringify(sessionData));
     await redis.expire(sessionKey, 86400); // 24 hours TTL
-    
+
     return session;
   }
 
   /**
    * Gets voting session information (cached)
    */
-  static async getVotingSessionCached(postId: string, chapterId: string): Promise<VotingSession | null> {
+  static async getVotingSessionCached(
+    postId: string,
+    chapterId: string
+  ): Promise<VotingSession | null> {
     const stopTimer = PerformanceMonitor.startTimer('voting_get_session_cached');
-    
+
     try {
       const sessionKey = `${this.SESSION_PREFIX}:${postId}:${chapterId}`;
       const data = await RedisOptimizer.getCached(sessionKey, 30000); // 30 second cache
-      
+
       if (!data) {
         stopTimer();
         return null;
       }
 
       const sessionData = JSON.parse(data);
-      
+
       const result = {
         ...sessionData,
         startTime: new Date(sessionData.startTime),
-        endTime: sessionData.endTime ? new Date(sessionData.endTime) : undefined
+        endTime: sessionData.endTime ? new Date(sessionData.endTime) : undefined,
       };
-      
+
       stopTimer();
       return result;
     } catch (error) {
@@ -315,7 +322,7 @@ export class VotingManager {
       ErrorLogger.logWarning('Error getting voting session', {
         postId,
         chapterId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -326,24 +333,24 @@ export class VotingManager {
    */
   static async getVotingSession(postId: string, chapterId: string): Promise<VotingSession | null> {
     const stopTimer = PerformanceMonitor.startTimer('voting_get_session');
-    
+
     try {
       const sessionKey = `${this.SESSION_PREFIX}:${postId}:${chapterId}`;
       const data = await redis.get(sessionKey);
-      
+
       if (!data) {
         stopTimer();
         return null;
       }
 
       const sessionData = JSON.parse(data);
-      
+
       const result = {
         ...sessionData,
         startTime: new Date(sessionData.startTime),
-        endTime: sessionData.endTime ? new Date(sessionData.endTime) : undefined
+        endTime: sessionData.endTime ? new Date(sessionData.endTime) : undefined,
       };
-      
+
       stopTimer();
       return result;
     } catch (error) {
@@ -352,7 +359,7 @@ export class VotingManager {
       ErrorLogger.logWarning('Error getting voting session (non-cached)', {
         postId,
         chapterId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     }
@@ -361,27 +368,30 @@ export class VotingManager {
   /**
    * Ends a voting session and determines the winner
    */
-  static async endVotingSession(postId: string, chapterId: string): Promise<{
+  static async endVotingSession(
+    postId: string,
+    chapterId: string
+  ): Promise<{
     winningChoice: string;
     stats: VotingStats;
   } | null> {
     try {
       const sessionKey = `${this.SESSION_PREFIX}:${postId}:${chapterId}`;
       const session = await this.getVotingSession(postId, chapterId);
-      
+
       if (!session) return null;
 
       // Update session status
       const updatedSession = {
         ...session,
         status: 'completed' as const,
-        endTime: new Date()
+        endTime: new Date(),
       };
 
       const sessionData = {
         ...updatedSession,
         startTime: updatedSession.startTime.toISOString(),
-        endTime: updatedSession.endTime ? updatedSession.endTime.toISOString() : undefined
+        endTime: updatedSession.endTime ? updatedSession.endTime.toISOString() : undefined,
       };
 
       await redis.set(sessionKey, JSON.stringify(sessionData));
@@ -393,7 +403,7 @@ export class VotingManager {
 
       return {
         winningChoice: stats.winningChoice,
-        stats
+        stats,
       };
     } catch (error) {
       console.error('Error ending voting session:', error);
@@ -409,7 +419,7 @@ export class VotingManager {
       const voteCounts = await this.getVoteCounts(postId, chapterId);
       if (voteCounts.length === 0) return null;
 
-      const winner = voteCounts.reduce((prev, current) => 
+      const winner = voteCounts.reduce((prev, current) =>
         current.count > prev.count ? current : prev
       );
 
@@ -430,9 +440,9 @@ export class VotingManager {
       const uniqueVotersKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:unique_voters`;
       const votersData = await redis.hGetAll(uniqueVotersKey);
       const voterIds = Object.keys(votersData);
-      
+
       const votes: Vote[] = [];
-      
+
       for (const userId of voterIds) {
         const voteKey = `${this.VOTE_PREFIX}:${postId}:${chapterId}:${userId}`;
         const data = await redis.get(voteKey);
@@ -441,14 +451,14 @@ export class VotingManager {
             const voteData = JSON.parse(data);
             votes.push({
               ...voteData,
-              timestamp: new Date(voteData.timestamp)
+              timestamp: new Date(voteData.timestamp),
             });
           } catch (error) {
             console.error('Error parsing vote data:', error);
           }
         }
       }
-      
+
       return votes;
     } catch (error) {
       console.error('Error getting all votes:', error);
@@ -465,7 +475,7 @@ export class VotingManager {
       const uniqueVotersKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:unique_voters`;
       const votersData = await redis.hGetAll(uniqueVotersKey);
       const voterIds = Object.keys(votersData);
-      
+
       // Delete individual vote records
       for (const userId of voterIds) {
         const voteKey = `${this.VOTE_PREFIX}:${postId}:${chapterId}:${userId}`;
@@ -473,7 +483,7 @@ export class VotingManager {
         await redis.del(voteKey);
         await redis.del(userVoteKey);
       }
-      
+
       // Get session to know available choices
       const session = await this.getVotingSession(postId, chapterId);
       if (session) {
@@ -482,14 +492,14 @@ export class VotingManager {
           await redis.del(voteCountKey);
         }
       }
-      
+
       // Delete aggregate keys
       const keysToDelete = [
         `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:total`,
         uniqueVotersKey,
-        `${this.SESSION_PREFIX}:${postId}:${chapterId}`
+        `${this.SESSION_PREFIX}:${postId}:${chapterId}`,
       ];
-      
+
       for (const key of keysToDelete) {
         await redis.del(key);
       }
@@ -506,8 +516,10 @@ export class VotingManager {
     try {
       // This method would need to be enhanced to track all chapters for a story
       // For now, we'll provide a basic implementation
-      console.warn('clearStoryVotes: Limited implementation - cannot clear all data without chapter tracking');
-      
+      console.warn(
+        'clearStoryVotes: Limited implementation - cannot clear all data without chapter tracking'
+      );
+
       // We could implement this by maintaining a set of chapter IDs per story
       // Similar to how we track chapters in the story state manager
     } catch (error) {
@@ -529,12 +541,12 @@ export class VotingManager {
       // This would need to be enhanced with proper chapter tracking
       // For now, return basic stats
       console.warn('getStoryVotingStats: Limited implementation - requires chapter tracking');
-      
+
       return {
         totalVotes: 0,
         totalChapters: 0,
         uniqueParticipants: 0,
-        averageVotesPerChapter: 0
+        averageVotesPerChapter: 0,
       };
     } catch (error) {
       console.error('Error getting story voting stats:', error);
@@ -542,7 +554,7 @@ export class VotingManager {
         totalVotes: 0,
         totalChapters: 0,
         uniqueParticipants: 0,
-        averageVotesPerChapter: 0
+        averageVotesPerChapter: 0,
       };
     }
   }
@@ -550,12 +562,15 @@ export class VotingManager {
   /**
    * Validates voting data integrity
    */
-  static async validateVotingData(postId: string, chapterId: string): Promise<{
+  static async validateVotingData(
+    postId: string,
+    chapterId: string
+  ): Promise<{
     isValid: boolean;
     errors: string[];
   }> {
     const errors: string[] = [];
-    
+
     try {
       // Check if voting session exists
       const session = await this.getVotingSession(postId, chapterId);
@@ -563,33 +578,34 @@ export class VotingManager {
         errors.push('Voting session not found');
         return { isValid: false, errors };
       }
-      
+
       // Check vote count consistency
       const voteCounts = await this.getVoteCounts(postId, chapterId);
       const totalVotesKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:total`;
-      const storedTotal = parseInt(await redis.get(totalVotesKey) || '0');
+      const storedTotal = parseInt((await redis.get(totalVotesKey)) || '0');
       const calculatedTotal = voteCounts.reduce((sum, count) => sum + count.count, 0);
-      
+
       if (storedTotal !== calculatedTotal) {
         errors.push(`Vote count mismatch: stored=${storedTotal}, calculated=${calculatedTotal}`);
       }
-      
+
       // Check unique voters count
       const uniqueVotersKey = `${this.VOTE_COUNT_PREFIX}:${postId}:${chapterId}:unique_voters`;
       const uniqueVotersData = await redis.hGetAll(uniqueVotersKey);
       const uniqueVotersCount = Object.keys(uniqueVotersData).length;
-      
+
       if (uniqueVotersCount > storedTotal) {
-        errors.push(`Unique voters count (${uniqueVotersCount}) exceeds total votes (${storedTotal})`);
+        errors.push(
+          `Unique voters count (${uniqueVotersCount}) exceeds total votes (${storedTotal})`
+        );
       }
-      
     } catch (error) {
       errors.push(`Validation error: ${error}`);
     }
-    
+
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 }

@@ -14,7 +14,7 @@ export class HalloweenGameEngine {
 
   static createNewGame(): { gameState: GameState; config: GameConfig } {
     const config = { ...this.DEFAULT_CONFIG };
-    
+
     const gameState: GameState = {
       ghost: { x: 100, y: 100 },
       monsters: this.generateMonsters(config),
@@ -32,8 +32,8 @@ export class HalloweenGameEngine {
   }
 
   static moveGhost(
-    gameState: GameState, 
-    config: GameConfig, 
+    gameState: GameState,
+    config: GameConfig,
     direction: 'up' | 'down' | 'left' | 'right'
   ): GameState {
     if (gameState.gameStatus !== 'playing') {
@@ -63,12 +63,12 @@ export class HalloweenGameEngine {
 
     // Move monsters towards ghost (unless power-up is active)
     if (!gameState.powerUpActive) {
-      newGameState.monsters = gameState.monsters.map(monster => 
+      newGameState.monsters = gameState.monsters.map((monster) =>
         this.moveMonster(monster, ghost, config, gameState.level)
       );
     } else {
       // During power-up, monsters move away from ghost
-      newGameState.monsters = gameState.monsters.map(monster => 
+      newGameState.monsters = gameState.monsters.map((monster) =>
         this.moveMonsterAway(monster, ghost, config)
       );
       newGameState.powerUpTimeLeft = Math.max(0, gameState.powerUpTimeLeft - 1);
@@ -106,7 +106,7 @@ export class HalloweenGameEngine {
       newGameState.level += 1;
       newGameState.score += 200; // Level completion bonus
       newGameState.timeLeft = config.levelDuration;
-      
+
       // Generate new level
       newGameState.pumpkins = this.generatePumpkins(config);
       newGameState.monsters = this.generateMonsters(config, newGameState.level);
@@ -116,9 +116,14 @@ export class HalloweenGameEngine {
     return newGameState;
   }
 
-  private static moveMonster(monster: Position, ghost: Position, config: GameConfig, level: number): Position {
+  private static moveMonster(
+    monster: Position,
+    ghost: Position,
+    config: GameConfig,
+    level: number
+  ): Position {
     const monsterSpeed = config.monsterSpeed + (level - 1) * 2; // Monsters get faster each level
-    
+
     // Calculate direction to ghost
     const dx = ghost.x - monster.x;
     const dy = ghost.y - monster.y;
@@ -143,7 +148,7 @@ export class HalloweenGameEngine {
 
   private static moveMonsterAway(monster: Position, ghost: Position, config: GameConfig): Position {
     const monsterSpeed = config.monsterSpeed * 0.8; // Slower when running away
-    
+
     // Calculate direction away from ghost
     const dx = monster.x - ghost.x;
     const dy = monster.y - ghost.y;
@@ -168,18 +173,18 @@ export class HalloweenGameEngine {
   }
 
   private static checkPumpkinCollection(
-    ghost: Position, 
+    ghost: Position,
     pumpkins: Position[]
   ): { pumpkins: Position[]; collected: number; powerUp: boolean } {
     const collectionRadius = 25;
     let collected = 0;
     let powerUp = false;
-    
+
     const remainingPumpkins = pumpkins.filter((pumpkin, index) => {
       const distance = Math.sqrt(
         Math.pow(ghost.x - pumpkin.x, 2) + Math.pow(ghost.y - pumpkin.y, 2)
       );
-      
+
       if (distance < collectionRadius) {
         collected++;
         // Every 5th pumpkin is a power-up (golden pumpkin)
@@ -196,8 +201,8 @@ export class HalloweenGameEngine {
 
   private static checkMonsterCaughtGhost(monsters: Position[], ghost: Position): boolean {
     const catchRadius = 30;
-    
-    return monsters.some(monster => {
+
+    return monsters.some((monster) => {
       const distance = Math.sqrt(
         Math.pow(monster.x - ghost.x, 2) + Math.pow(monster.y - ghost.y, 2)
       );
@@ -208,14 +213,14 @@ export class HalloweenGameEngine {
   private static generatePumpkins(config: GameConfig): Position[] {
     const pumpkins: Position[] = [];
     const margin = 40;
-    
+
     for (let i = 0; i < config.pumpkinCount; i++) {
       pumpkins.push({
         x: Math.random() * (config.boardWidth - 2 * margin) + margin,
         y: Math.random() * (config.boardHeight - 2 * margin) + margin,
       });
     }
-    
+
     return pumpkins;
   }
 
@@ -223,7 +228,7 @@ export class HalloweenGameEngine {
     const monsters: Position[] = [];
     const margin = 60;
     const monsterCount = Math.min(config.monsterCount + Math.floor(level / 3), 6); // Max 6 monsters
-    
+
     for (let i = 0; i < monsterCount; i++) {
       // Place monsters away from starting position (100, 100)
       let x, y;
@@ -231,29 +236,29 @@ export class HalloweenGameEngine {
         x = Math.random() * (config.boardWidth - 2 * margin) + margin;
         y = Math.random() * (config.boardHeight - 2 * margin) + margin;
       } while (Math.sqrt(Math.pow(x - 100, 2) + Math.pow(y - 100, 2)) < 150);
-      
+
       monsters.push({ x, y });
     }
-    
+
     return monsters;
   }
 
   static calculateScore(gameState: GameState): number {
     // Base score from pumpkin collection
     let score = gameState.score;
-    
+
     // Bonus for surviving with lives
     const lifeBonus = gameState.lives * 50;
     score += lifeBonus;
-    
+
     // Level completion bonus
     const levelBonus = (gameState.level - 1) * 300;
     score += levelBonus;
-    
+
     // Time bonus
     const timeBonus = Math.max(0, gameState.timeLeft) * gameState.level;
     score += timeBonus;
-    
+
     return score;
   }
 }

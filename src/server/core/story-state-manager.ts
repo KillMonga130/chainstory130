@@ -4,11 +4,11 @@
  */
 
 import { redis } from '@devvit/web/server';
-import { 
-  StoryChapter, 
-  StoryContext, 
+import {
+  StoryChapter,
+  StoryContext,
   StoryProgression,
-  ValidationResult 
+  ValidationResult,
 } from '../../shared/types/story.js';
 
 export class StoryStateManager {
@@ -24,20 +24,20 @@ export class StoryStateManager {
   static async storeChapter(postId: string, chapter: StoryChapter): Promise<void> {
     const key = `${this.CHAPTER_PREFIX}:${postId}:${chapter.id}`;
     const chapterSetKey = `${this.STORY_PREFIX}:${postId}:chapters`;
-    
+
     const chapterData = {
       ...chapter,
       metadata: {
         ...chapter.metadata,
         createdAt: chapter.metadata.createdAt.toISOString(),
         votingStartTime: chapter.metadata.votingStartTime.toISOString(),
-        votingEndTime: chapter.metadata.votingEndTime?.toISOString()
-      }
+        votingEndTime: chapter.metadata.votingEndTime?.toISOString(),
+      },
     };
 
     await redis.set(key, JSON.stringify(chapterData));
     await redis.expire(key, 86400); // 24 hours TTL
-    
+
     // Track chapter ID in a hash for easy retrieval
     await redis.hSet(chapterSetKey, { [chapter.id]: '1' });
     await redis.expire(chapterSetKey, 86400); // 24 hours TTL
@@ -49,12 +49,12 @@ export class StoryStateManager {
   static async getChapter(postId: string, chapterId: string): Promise<StoryChapter | null> {
     const key = `${this.CHAPTER_PREFIX}:${postId}:${chapterId}`;
     const data = await redis.get(key);
-    
+
     if (!data) return null;
 
     try {
       const chapterData = JSON.parse(data);
-      
+
       // Convert date strings back to Date objects
       return {
         ...chapterData,
@@ -62,10 +62,10 @@ export class StoryStateManager {
           ...chapterData.metadata,
           createdAt: new Date(chapterData.metadata.createdAt),
           votingStartTime: new Date(chapterData.metadata.votingStartTime),
-          votingEndTime: chapterData.metadata.votingEndTime 
-            ? new Date(chapterData.metadata.votingEndTime) 
-            : undefined
-        }
+          votingEndTime: chapterData.metadata.votingEndTime
+            ? new Date(chapterData.metadata.votingEndTime)
+            : undefined,
+        },
       };
     } catch (error) {
       console.error('Error parsing chapter data:', error);
@@ -79,9 +79,9 @@ export class StoryStateManager {
   static async getCurrentChapter(postId: string): Promise<StoryChapter | null> {
     const currentChapterKey = `${this.STORY_PREFIX}:${postId}:current_chapter`;
     const currentChapterId = await redis.get(currentChapterKey);
-    
+
     if (!currentChapterId) return null;
-    
+
     return this.getChapter(postId, currentChapterId);
   }
 
@@ -99,10 +99,10 @@ export class StoryStateManager {
    */
   static async storeStoryContext(postId: string, context: StoryContext): Promise<void> {
     const key = `${this.CONTEXT_PREFIX}:${postId}`;
-    
+
     const contextData = {
       ...context,
-      storyStartTime: context.storyStartTime.toISOString()
+      storyStartTime: context.storyStartTime.toISOString(),
     };
 
     await redis.set(key, JSON.stringify(contextData));
@@ -115,15 +115,15 @@ export class StoryStateManager {
   static async getStoryContext(postId: string): Promise<StoryContext | null> {
     const key = `${this.CONTEXT_PREFIX}:${postId}`;
     const data = await redis.get(key);
-    
+
     if (!data) return null;
 
     try {
       const contextData = JSON.parse(data);
-      
+
       return {
         ...contextData,
-        storyStartTime: new Date(contextData.storyStartTime)
+        storyStartTime: new Date(contextData.storyStartTime),
       };
     } catch (error) {
       console.error('Error parsing story context:', error);
@@ -135,12 +135,12 @@ export class StoryStateManager {
    * Updates story context with new choice
    */
   static async updateStoryContext(
-    postId: string, 
-    newChapterId: string, 
+    postId: string,
+    newChapterId: string,
     choiceId: string
   ): Promise<StoryContext | null> {
     const context = await this.getStoryContext(postId);
-    
+
     if (!context) {
       console.error('Story context not found for post:', postId);
       return null;
@@ -150,7 +150,7 @@ export class StoryStateManager {
       ...context,
       currentChapter: newChapterId,
       previousChoices: [...context.previousChoices, choiceId],
-      pathTaken: [...context.pathTaken, choiceId]
+      pathTaken: [...context.pathTaken, choiceId],
     };
 
     await this.storeStoryContext(postId, updatedContext);
@@ -161,22 +161,22 @@ export class StoryStateManager {
    * Adds a chapter to story history
    */
   static async addToHistory(
-    postId: string, 
-    chapterId: string, 
+    postId: string,
+    chapterId: string,
     winningChoice: string
   ): Promise<void> {
     const historyKey = `${this.HISTORY_PREFIX}:${postId}`;
-    
+
     const historyEntry = {
       chapterId,
       winningChoice,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // Use hash to store history entries with timestamp as field
     const timestamp = Date.now().toString();
     await redis.hSet(historyKey, { [timestamp]: JSON.stringify(historyEntry) });
-    
+
     // Set TTL on the history key
     await redis.expire(historyKey, 86400); // 24 hours
   }
@@ -184,32 +184,34 @@ export class StoryStateManager {
   /**
    * Gets story history
    */
-  static async getStoryHistory(postId: string): Promise<Array<{
-    chapterId: string;
-    winningChoice: string;
-    timestamp: Date;
-  }>> {
+  static async getStoryHistory(postId: string): Promise<
+    Array<{
+      chapterId: string;
+      winningChoice: string;
+      timestamp: Date;
+    }>
+  > {
     const historyKey = `${this.HISTORY_PREFIX}:${postId}`;
     const historyData = await redis.hGetAll(historyKey);
-    
+
     const entries: Array<{
       chapterId: string;
       winningChoice: string;
       timestamp: Date;
     }> = [];
-    
+
     for (const [, entryJson] of Object.entries(historyData)) {
       try {
         const parsed = JSON.parse(entryJson);
         entries.push({
           ...parsed,
-          timestamp: new Date(parsed.timestamp)
+          timestamp: new Date(parsed.timestamp),
         });
       } catch (error) {
         console.error('Error parsing history entry:', error);
       }
     }
-    
+
     // Sort by timestamp (most recent first)
     return entries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
   }
@@ -229,7 +231,7 @@ export class StoryStateManager {
   static async getProgression(postId: string): Promise<StoryProgression | null> {
     const key = `${this.PROGRESSION_PREFIX}:${postId}`;
     const data = await redis.get(key);
-    
+
     if (!data) return null;
 
     try {
@@ -246,33 +248,33 @@ export class StoryStateManager {
   static async initializeStory(postId: string, firstChapter: StoryChapter): Promise<StoryContext> {
     // Store the first chapter
     await this.storeChapter(postId, firstChapter);
-    
+
     // Set as current chapter
     await this.setCurrentChapter(postId, firstChapter.id);
-    
+
     // Create initial story context
     const initialContext: StoryContext = {
       currentChapter: firstChapter.id,
       previousChoices: [],
       pathTaken: [],
       userVotes: {},
-      storyStartTime: new Date()
+      storyStartTime: new Date(),
     };
-    
+
     // Store initial context
     await this.storeStoryContext(postId, initialContext);
-    
+
     // Initialize progression
     const initialProgression: StoryProgression = {
       totalChapters: 1,
       currentPosition: 1,
       completedPaths: [],
-      availablePaths: firstChapter.choices.map(choice => choice.id),
-      progressPercentage: 0
+      availablePaths: firstChapter.choices.map((choice) => choice.id),
+      progressPercentage: 0,
     };
-    
+
     await this.storeProgression(postId, initialProgression);
-    
+
     return initialContext;
   }
 
@@ -291,7 +293,7 @@ export class StoryStateManager {
     const keysToDelete = [
       `${this.CONTEXT_PREFIX}:${postId}`,
       `${this.PROGRESSION_PREFIX}:${postId}`,
-      `${this.STORY_PREFIX}:${postId}:current_chapter`
+      `${this.STORY_PREFIX}:${postId}:current_chapter`,
     ];
 
     // Only delete history if not preserving it
@@ -312,12 +314,12 @@ export class StoryStateManager {
     const chapterSetKey = `${this.STORY_PREFIX}:${postId}:chapters`;
     const chapterData = await redis.hGetAll(chapterSetKey);
     const chapterIds = Object.keys(chapterData);
-    
+
     for (const chapterId of chapterIds) {
       const chapterKey = `${this.CHAPTER_PREFIX}:${postId}:${chapterId}`;
       await redis.del(chapterKey);
     }
-    
+
     // Delete the chapter hash itself
     await redis.del(chapterSetKey);
 
@@ -342,7 +344,7 @@ export class StoryStateManager {
   static async getCompletedPaths(postId: string): Promise<string[]> {
     const key = `${this.STORY_PREFIX}:${postId}:completed_paths`;
     const data = await redis.get(key);
-    
+
     if (!data) return [];
 
     try {
@@ -371,9 +373,9 @@ export class StoryStateManager {
     const chapterSetKey = `${this.STORY_PREFIX}:${postId}:chapters`;
     const chapterData = await redis.hGetAll(chapterSetKey);
     const chapterIds = Object.keys(chapterData);
-    
+
     const chapters: StoryChapter[] = [];
-    
+
     for (const chapterId of chapterIds) {
       const chapterKey = `${this.CHAPTER_PREFIX}:${postId}:${chapterId}`;
       const data = await redis.get(chapterKey);
@@ -386,17 +388,17 @@ export class StoryStateManager {
               ...chapterData.metadata,
               createdAt: new Date(chapterData.metadata.createdAt),
               votingStartTime: new Date(chapterData.metadata.votingStartTime),
-              votingEndTime: chapterData.metadata.votingEndTime 
-                ? new Date(chapterData.metadata.votingEndTime) 
-                : undefined
-            }
+              votingEndTime: chapterData.metadata.votingEndTime
+                ? new Date(chapterData.metadata.votingEndTime)
+                : undefined,
+            },
           });
         } catch (error) {
           console.error('Error parsing chapter data:', error);
         }
       }
     }
-    
+
     return chapters;
   }
 
@@ -405,65 +407,66 @@ export class StoryStateManager {
    */
   static async validateStoryState(postId: string): Promise<ValidationResult> {
     const errors: string[] = [];
-    
+
     try {
       // Check if current chapter exists
       const currentChapter = await this.getCurrentChapter(postId);
       if (!currentChapter) {
         errors.push('No current chapter found');
       }
-      
+
       // Check if story context exists
       const context = await this.getStoryContext(postId);
       if (!context) {
         errors.push('No story context found');
       }
-      
+
       // Validate context consistency
       if (currentChapter && context) {
         if (currentChapter.id !== context.currentChapter) {
           errors.push('Current chapter mismatch between chapter and context');
         }
       }
-      
+
       // Check progression data
       const progression = await this.getProgression(postId);
       if (!progression) {
         errors.push('No progression data found');
       }
-      
     } catch (error) {
       errors.push(`Validation error: ${error}`);
     }
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
   /**
    * Gets alternative story branches from current position
    */
-  static async getAlternativeBranches(postId: string): Promise<Array<{
-    branchId: string;
-    title: string;
-    description: string;
-    isCompleted: boolean;
-    choices: Array<{
-      id: string;
-      text: string;
-      description?: string;
-    }>;
-  }>> {
+  static async getAlternativeBranches(postId: string): Promise<
+    Array<{
+      branchId: string;
+      title: string;
+      description: string;
+      isCompleted: boolean;
+      choices: Array<{
+        id: string;
+        text: string;
+        description?: string;
+      }>;
+    }>
+  > {
     const context = await this.getStoryContext(postId);
     const completedPaths = await this.getCompletedPaths(postId);
-    
+
     if (!context) return [];
 
     // Import StoryContentManager dynamically to avoid circular imports
     const { StoryContentManager } = await import('./story-content-manager.js');
-    
+
     const alternatives: Array<{
       branchId: string;
       title: string;
@@ -478,20 +481,20 @@ export class StoryStateManager {
 
     // Get all available branches
     const allBranches = StoryContentManager.getAllBranches();
-    
+
     for (const branch of allBranches) {
-      const isCompleted = completedPaths.some(path => path.includes(branch.id));
-      
+      const isCompleted = completedPaths.some((path) => path.includes(branch.id));
+
       alternatives.push({
         branchId: branch.id,
         title: branch.title,
         description: `A ${branch.visualTheme} path through the haunted thread`,
         isCompleted,
-        choices: branch.choices.map(choice => ({
+        choices: branch.choices.map((choice) => ({
           id: choice.id,
           text: choice.text,
-          ...(choice.description && { description: choice.description })
-        }))
+          ...(choice.description && { description: choice.description }),
+        })),
       });
     }
 
@@ -501,7 +504,10 @@ export class StoryStateManager {
   /**
    * Gets story replay data for a specific path
    */
-  static async getStoryReplay(postId: string, pathId: string): Promise<{
+  static async getStoryReplay(
+    postId: string,
+    pathId: string
+  ): Promise<{
     pathId: string;
     chapters: StoryChapter[];
     decisions: string[];
@@ -509,14 +515,14 @@ export class StoryStateManager {
   } | null> {
     const history = await this.getStoryHistory(postId);
     const completedPaths = await this.getCompletedPaths(postId);
-    
+
     if (!completedPaths.includes(pathId)) {
       return null; // Path not completed
     }
 
     // Filter history for this specific path
-    const pathHistory = history.filter(entry => 
-      entry.chapterId.includes(pathId) || entry.winningChoice.includes(pathId)
+    const pathHistory = history.filter(
+      (entry) => entry.chapterId.includes(pathId) || entry.winningChoice.includes(pathId)
     );
 
     const chapters: StoryChapter[] = [];
@@ -534,7 +540,7 @@ export class StoryStateManager {
       pathId,
       chapters,
       decisions,
-      ending: undefined // Could be populated with ending data
+      ending: undefined, // Could be populated with ending data
     };
   }
 
@@ -554,12 +560,10 @@ export class StoryStateManager {
       this.getStoryHistory(postId),
       this.getStoryContext(postId),
       this.getCompletedPaths(postId),
-      this.getAlternativeBranches(postId)
+      this.getAlternativeBranches(postId),
     ]);
 
-    const storyAge = context 
-      ? Date.now() - context.storyStartTime.getTime() 
-      : 0;
+    const storyAge = context ? Date.now() - context.storyStartTime.getTime() : 0;
 
     return {
       totalChapters: chapters.length,
@@ -567,7 +571,7 @@ export class StoryStateManager {
       storyAge,
       currentChapter: context?.currentChapter || null,
       completedPaths: completedPaths.length,
-      availableBranches: alternatives.length
+      availableBranches: alternatives.length,
     };
   }
 }

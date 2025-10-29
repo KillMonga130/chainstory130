@@ -1,5 +1,5 @@
 import React from 'react';
-import { StoryChapter as StoryChapterType, VisualElements } from '../../shared/types/story';
+import { StoryChapter as StoryChapterType } from '../../shared/types/story';
 import { VisualEffects } from './VisualEffects';
 
 interface StoryChapterProps {
@@ -7,20 +7,15 @@ interface StoryChapterProps {
   className?: string;
 }
 
-export const StoryChapter: React.FC<StoryChapterProps> = ({ 
-  chapter, 
-  className = '' 
-}) => {
+export const StoryChapter: React.FC<StoryChapterProps> = ({ chapter, className = '' }) => {
   const { title, content, visualElements } = chapter;
 
   return (
     <div className={`story-chapter fade-in-animation ${className}`}>
       <VisualEffects elements={visualElements} />
-      
+
       <div className="story-header">
-        <h1 className="horror-title flicker-animation">
-          {title}
-        </h1>
+        <h1 className="horror-title flicker-animation">{title}</h1>
       </div>
 
       <div className="story-content">

@@ -38,7 +38,6 @@ export class AdminManager {
   private static readonly ADMIN_PREFIX = 'haunted_thread:admin';
   private static readonly MODERATION_PREFIX = 'haunted_thread:moderation';
 
-  
   // Simple admin key validation (in production, use proper authentication)
   private static readonly ADMIN_KEY = process.env.HAUNTED_THREAD_ADMIN_KEY || 'dev-admin-key';
 
@@ -80,7 +79,7 @@ export class AdminManager {
       let winningChoice: string;
       if (forceChoice) {
         // Validate forced choice exists
-        const validChoice = currentChapter.choices.find(c => c.id === forceChoice);
+        const validChoice = currentChapter.choices.find((c) => c.id === forceChoice);
         if (!validChoice) {
           return { success: false, error: 'Invalid forced choice ID' };
         }
@@ -103,7 +102,10 @@ export class AdminManager {
       );
 
       if (!progressionResult.success || !progressionResult.newChapter) {
-        return { success: false, error: progressionResult.error || 'Failed to generate next chapter' };
+        return {
+          success: false,
+          error: progressionResult.error || 'Failed to generate next chapter',
+        };
       }
 
       const nextChapter = progressionResult.newChapter;
@@ -122,7 +124,7 @@ export class AdminManager {
       // Create voting session for new chapter
       const choices = nextChapter.choices.map((choice: any) => ({
         choiceId: choice.id,
-        text: choice.text
+        text: choice.text,
       }));
       await VotingManager.createVotingSession(postId, nextChapter.id, choices);
 
@@ -132,16 +134,16 @@ export class AdminManager {
         newChapter: nextChapter.id,
         winningChoice,
         forceChoice: !!forceChoice,
-        reason: reason || 'Manual advancement'
+        reason: reason || 'Manual advancement',
       });
 
       // Broadcast chapter transition
-      const statsToUse = previousStats || { 
-        totalVotes: 0, 
-        uniqueVoters: 0, 
+      const statsToUse = previousStats || {
+        totalVotes: 0,
+        uniqueVoters: 0,
         votingDuration: 0,
         winningChoice: winningChoice,
-        winningPercentage: 0
+        winningPercentage: 0,
       };
       await RealtimeManager.broadcastChapterTransition(
         postId,
@@ -157,20 +159,19 @@ export class AdminManager {
         error?: string;
       } = {
         success: true,
-        newChapter: nextChapter
+        newChapter: nextChapter,
       };
-      
+
       if (previousStats) {
         returnResult.previousStats = previousStats;
       }
-      
-      return returnResult;
 
+      return returnResult;
     } catch (error) {
       console.error('Error advancing story:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -206,20 +207,20 @@ What do you choose to do?`,
             id: 'choice-1',
             text: 'Enter the mansion through the front door',
             description: 'Walk boldly through the main entrance',
-            voteCount: 0
+            voteCount: 0,
           },
           {
-            id: 'choice-2', 
+            id: 'choice-2',
             text: 'Sneak around to find a back entrance',
             description: 'Look for a more discreet way inside',
-            voteCount: 0
+            voteCount: 0,
           },
           {
             id: 'choice-3',
             text: 'Turn around and leave immediately',
             description: 'This place gives you a bad feeling',
-            voteCount: 0
-          }
+            voteCount: 0,
+          },
         ],
         visualElements: {
           atmosphericEffects: ['fog', 'shadows'],
@@ -229,7 +230,7 @@ What do you choose to do?`,
             background: '#0D0D0D',
             text: '#E0E0E0',
             accent: '#FF6B6B',
-            danger: '#FF0000'
+            danger: '#FF0000',
           },
           typography: {
             fontFamily: 'serif',
@@ -239,44 +240,47 @@ What do you choose to do?`,
               small: '0.875rem',
               medium: '1rem',
               large: '1.25rem',
-              xlarge: '1.5rem'
-            }
+              xlarge: '1.5rem',
+            },
           },
-          animations: []
+          animations: [],
         },
         metadata: {
           createdAt: new Date(),
           votingStartTime: new Date(),
           totalVotes: 0,
           status: 'active' as const,
-          pathPosition: 0
-        }
+          pathPosition: 0,
+        },
       };
 
       await StoryStateManager.initializeStory(postId, initialChapter);
 
       // Create initial voting session
-      const choices = initialChapter.choices.map(choice => ({
+      const choices = initialChapter.choices.map((choice) => ({
         choiceId: choice.id,
-        text: choice.text
+        text: choice.text,
       }));
       await VotingManager.createVotingSession(postId, initialChapter.id, choices);
 
       // Log admin action
       await this.logAdminAction(postId, 'reset_story', {
-        reason: reason || 'Manual reset'
+        reason: reason || 'Manual reset',
       });
 
       // Broadcast story reset
-      await RealtimeManager.broadcastStoryReset(postId, reason || 'Story reset by administrator', initialChapter);
+      await RealtimeManager.broadcastStoryReset(
+        postId,
+        reason || 'Story reset by administrator',
+        initialChapter
+      );
 
       return { success: true };
-
     } catch (error) {
       console.error('Error resetting story:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -284,7 +288,10 @@ What do you choose to do?`,
   /**
    * Gets comprehensive story statistics
    */
-  static async getStoryStats(postId: string, adminKey: string): Promise<{
+  static async getStoryStats(
+    postId: string,
+    adminKey: string
+  ): Promise<{
     success: boolean;
     stats?: AdminStats;
     error?: string;
@@ -297,7 +304,7 @@ What do you choose to do?`,
       const [storyStats, context, currentChapter] = await Promise.all([
         StoryStateManager.getStoryStats(postId),
         StoryStateManager.getStoryContext(postId),
-        StoryStateManager.getCurrentChapter(postId)
+        StoryStateManager.getCurrentChapter(postId),
       ]);
 
       // Get voting statistics for current chapter
@@ -311,9 +318,8 @@ What do you choose to do?`,
 
       // Calculate engagement metrics
       const currentEngagement = currentVotingStats?.totalVotes || 0;
-      const averageVotesPerChapter = storyStats.totalChapters > 0 
-        ? Math.round(currentEngagement / storyStats.totalChapters) 
-        : 0;
+      const averageVotesPerChapter =
+        storyStats.totalChapters > 0 ? Math.round(currentEngagement / storyStats.totalChapters) : 0;
 
       const stats: AdminStats = {
         totalChapters: storyStats.totalChapters,
@@ -324,16 +330,15 @@ What do you choose to do?`,
         currentEngagement,
         ...(context?.storyStartTime && { storyStartTime: context.storyStartTime }),
         ...(storyStats.currentChapter && { currentChapter: storyStats.currentChapter }),
-        votingActive
+        votingActive,
       };
 
       return { success: true, stats };
-
     } catch (error) {
       console.error('Error getting story stats:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -360,14 +365,17 @@ What do you choose to do?`,
         targetId,
         reason,
         reportedAt: new Date(),
-        status: 'pending'
+        status: 'pending',
       };
 
       const reportKey = `${this.MODERATION_PREFIX}:${postId}:reports:${reportId}`;
-      await redis.set(reportKey, JSON.stringify({
-        ...report,
-        reportedAt: report.reportedAt.toISOString()
-      }));
+      await redis.set(
+        reportKey,
+        JSON.stringify({
+          ...report,
+          reportedAt: report.reportedAt.toISOString(),
+        })
+      );
       await redis.expire(reportKey, 86400 * 7); // 7 days TTL
 
       // Add to reports index
@@ -380,16 +388,15 @@ What do you choose to do?`,
         reportId,
         targetType,
         targetId,
-        reason
+        reason,
       });
 
       return { success: true, reportId };
-
     } catch (error) {
       console.error('Error flagging content:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -411,7 +418,7 @@ What do you choose to do?`,
     try {
       const reportKey = `${this.MODERATION_PREFIX}:${postId}:reports:${reportId}`;
       const reportData = await redis.get(reportKey);
-      
+
       if (!reportData) {
         return { success: false, error: 'Report not found' };
       }
@@ -422,29 +429,31 @@ What do you choose to do?`,
         reportedAt: new Date(report.reportedAt),
         status: action === 'dismiss' ? 'dismissed' : 'resolved',
         moderatedBy: moderatorId,
-        moderatedAt: new Date()
+        moderatedAt: new Date(),
       };
 
-      await redis.set(reportKey, JSON.stringify({
-        ...updatedReport,
-        reportedAt: updatedReport.reportedAt.toISOString(),
-        moderatedAt: updatedReport.moderatedAt?.toISOString()
-      }));
+      await redis.set(
+        reportKey,
+        JSON.stringify({
+          ...updatedReport,
+          reportedAt: updatedReport.reportedAt.toISOString(),
+          moderatedAt: updatedReport.moderatedAt?.toISOString(),
+        })
+      );
 
       // Log admin action
       await this.logAdminAction(postId, 'resolve_report', {
         reportId,
         action,
-        moderatorId
+        moderatorId,
       });
 
       return { success: true };
-
     } catch (error) {
       console.error('Error resolving report:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -452,7 +461,10 @@ What do you choose to do?`,
   /**
    * Gets moderation statistics
    */
-  static async getModerationStats(postId: string, adminKey: string): Promise<{
+  static async getModerationStats(
+    postId: string,
+    adminKey: string
+  ): Promise<{
     success: boolean;
     stats?: {
       totalReports: number;
@@ -478,18 +490,18 @@ What do you choose to do?`,
       for (const reportId of reportIds) {
         const reportKey = `${this.MODERATION_PREFIX}:${postId}:reports:${reportId}`;
         const reportData = await redis.get(reportKey);
-        
+
         if (reportData) {
           try {
             const report = JSON.parse(reportData);
             const parsedReport: ModerationReport = {
               ...report,
               reportedAt: new Date(report.reportedAt),
-              moderatedAt: report.moderatedAt ? new Date(report.moderatedAt) : undefined
+              moderatedAt: report.moderatedAt ? new Date(report.moderatedAt) : undefined,
             };
-            
+
             reports.push(parsedReport);
-            
+
             if (parsedReport.status === 'pending') {
               pendingCount++;
             } else {
@@ -507,15 +519,14 @@ What do you choose to do?`,
           totalReports: reports.length,
           pendingReports: pendingCount,
           resolvedReports: resolvedCount,
-          flaggedContent: reports.sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime())
-        }
+          flaggedContent: reports.sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime()),
+        },
       };
-
     } catch (error) {
       console.error('Error getting moderation stats:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -531,11 +542,11 @@ What do you choose to do?`,
     try {
       const logKey = `${this.ADMIN_PREFIX}:${postId}:actions`;
       const timestamp = Date.now().toString();
-      
+
       const logEntry = {
         action,
         timestamp: new Date().toISOString(),
-        details
+        details,
       };
 
       await redis.hSet(logKey, { [timestamp]: JSON.stringify(logEntry) });
@@ -548,7 +559,10 @@ What do you choose to do?`,
   /**
    * Gets admin action logs
    */
-  static async getAdminLogs(postId: string, adminKey: string): Promise<{
+  static async getAdminLogs(
+    postId: string,
+    adminKey: string
+  ): Promise<{
     success: boolean;
     logs?: Array<{
       action: string;
@@ -564,30 +578,29 @@ What do you choose to do?`,
     try {
       const logKey = `${this.ADMIN_PREFIX}:${postId}:actions`;
       const logsData = await redis.hGetAll(logKey);
-      
+
       const logs = Object.entries(logsData)
         .map(([, logJson]) => {
           try {
             const log = JSON.parse(logJson);
             return {
               ...log,
-              timestamp: new Date(log.timestamp)
+              timestamp: new Date(log.timestamp),
             };
           } catch (error) {
             console.error('Error parsing log entry:', error);
             return null;
           }
         })
-        .filter(log => log !== null)
+        .filter((log) => log !== null)
         .sort((a, b) => b!.timestamp.getTime() - a!.timestamp.getTime());
 
       return { success: true, logs };
-
     } catch (error) {
       console.error('Error getting admin logs:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }

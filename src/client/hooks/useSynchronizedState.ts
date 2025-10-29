@@ -1,16 +1,16 @@
 import { useState, useCallback, useRef } from 'react';
 import { VoteCount, UserVoteStatus } from '../../shared/types/voting';
 import { StoryChapter, StoryContext } from '../../shared/types/story';
-import { 
-  VoteUpdateMessage, 
-  ChapterTransitionMessage, 
-  StoryResetMessage, 
-  VotingEndedMessage 
+import {
+  VoteUpdateMessage,
+  ChapterTransitionMessage,
+  StoryResetMessage,
+  VotingEndedMessage,
 } from '../../shared/types/api';
-import { 
-  mergeOptimisticWithServer, 
+import {
+  mergeOptimisticWithServer,
   calculateOptimisticVoteCounts,
-  createVoteRollback 
+  createVoteRollback,
 } from '../utils/optimisticUpdates';
 
 interface SynchronizedState {
@@ -51,23 +51,23 @@ export const useSynchronizedState = (
     voteCounts: [],
     userVoteStatus: { hasVoted: false },
     votingActive: false,
-    ...initialState
+    ...initialState,
   });
 
   const optimisticUpdatesRef = useRef<Map<string, OptimisticUpdate>>(new Map());
   const [hasOptimisticUpdates, setHasOptimisticUpdates] = useState(false);
 
   const updateState = useCallback((updates: Partial<SynchronizedState>) => {
-    setState(prevState => ({
+    setState((prevState) => ({
       ...prevState,
-      ...updates
+      ...updates,
     }));
   }, []);
 
   const applyOptimisticUpdate = useCallback((update: Omit<OptimisticUpdate, 'timestamp'>) => {
     const fullUpdate: OptimisticUpdate = {
       ...update,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     };
 
     // Store the optimistic update
@@ -78,17 +78,13 @@ export const useSynchronizedState = (
     switch (update.type) {
       case 'vote':
         const { choiceId } = update.data;
-        setState(prevState => {
+        setState((prevState) => {
           // Store original state for rollback
           const originalVoteCounts = [...prevState.voteCounts];
           const originalUserStatus = { ...prevState.userVoteStatus };
 
           // Create rollback function
-          const rollbackFn = createVoteRollback(
-            originalVoteCounts,
-            originalUserStatus,
-            setState
-          );
+          const rollbackFn = createVoteRollback(originalVoteCounts, originalUserStatus, setState);
 
           // Update the rollback function in the optimistic update
           const storedUpdate = optimisticUpdatesRef.current.get(update.id);
@@ -100,32 +96,28 @@ export const useSynchronizedState = (
           const newUserVoteStatus: UserVoteStatus = {
             hasVoted: true,
             choiceId,
-            timestamp: new Date()
+            timestamp: new Date(),
           };
 
           // Update vote counts optimistically using utility function
-          const newVoteCounts = calculateOptimisticVoteCounts(
-            prevState.voteCounts,
-            choiceId,
-            1
-          );
+          const newVoteCounts = calculateOptimisticVoteCounts(prevState.voteCounts, choiceId, 1);
 
           return {
             ...prevState,
             userVoteStatus: newUserVoteStatus,
-            voteCounts: newVoteCounts
+            voteCounts: newVoteCounts,
           };
         });
         break;
 
       case 'chapter_transition':
-        setState(prevState => ({
+        setState((prevState) => ({
           ...prevState,
           currentChapter: update.data.newChapter,
           context: update.data.newContext,
           voteCounts: [],
           userVoteStatus: { hasVoted: false },
-          votingActive: true
+          votingActive: true,
         }));
         break;
     }
@@ -149,104 +141,119 @@ export const useSynchronizedState = (
     setHasOptimisticUpdates(false);
   }, []);
 
-  const handleVoteUpdate = useCallback((message: VoteUpdateMessage) => {
-    console.log('Handling vote update from server:', message);
-    
-    // Get current optimistic updates for this chapter
-    const optimisticUpdates: OptimisticUpdate[] = [];
-    optimisticUpdatesRef.current.forEach((update) => {
-      if (update.type === 'vote' && update.data.chapterId === message.data.chapterId) {
-        optimisticUpdates.push(update);
+  const handleVoteUpdate = useCallback(
+    (message: VoteUpdateMessage) => {
+      console.log('Handling vote update from server:', message);
+
+      // Get current optimistic updates for this chapter
+      const optimisticUpdates: OptimisticUpdate[] = [];
+      optimisticUpdatesRef.current.forEach((update) => {
+        if (update.type === 'vote' && update.data.chapterId === message.data.chapterId) {
+          optimisticUpdates.push(update);
+        }
+      });
+
+      // Merge optimistic updates with server data
+      const currentVoteCounts = state.voteCounts;
+      const currentUserStatus = state.userVoteStatus;
+
+      const mergeResult = mergeOptimisticWithServer(
+        currentVoteCounts,
+        message.data.voteCounts,
+        currentUserStatus,
+        currentUserStatus // We don't get user status in vote updates, so keep current
+      );
+
+      if (mergeResult.hadConflicts) {
+        console.warn('Conflicts detected when merging optimistic updates with server data');
       }
-    });
 
-    // Merge optimistic updates with server data
-    const currentVoteCounts = state.voteCounts;
-    const currentUserStatus = state.userVoteStatus;
-    
-    const mergeResult = mergeOptimisticWithServer(
-      currentVoteCounts,
-      message.data.voteCounts,
-      currentUserStatus,
-      currentUserStatus // We don't get user status in vote updates, so keep current
-    );
+      // Clear optimistic updates for this chapter
+      optimisticUpdates.forEach((update) => {
+        optimisticUpdatesRef.current.delete(update.id);
+      });
+      setHasOptimisticUpdates(optimisticUpdatesRef.current.size > 0);
 
-    if (mergeResult.hadConflicts) {
-      console.warn('Conflicts detected when merging optimistic updates with server data');
-    }
+      // Update state with merged data
+      updateState({
+        voteCounts: mergeResult.voteCounts,
+      });
+    },
+    [updateState, state.voteCounts, state.userVoteStatus]
+  );
 
-    // Clear optimistic updates for this chapter
-    optimisticUpdates.forEach(update => {
-      optimisticUpdatesRef.current.delete(update.id);
-    });
-    setHasOptimisticUpdates(optimisticUpdatesRef.current.size > 0);
+  const handleChapterTransition = useCallback(
+    (message: ChapterTransitionMessage) => {
+      console.log('🔄 CHAPTER TRANSITION RECEIVED:', message);
+      console.log('New chapter data:', message.data.newChapter);
 
-    // Update state with merged data
-    updateState({
-      voteCounts: mergeResult.voteCounts
-    });
-  }, [updateState, state.voteCounts, state.userVoteStatus]);
+      // Clear all optimistic updates since we have a new chapter
+      clearOptimisticUpdates();
 
-  const handleChapterTransition = useCallback((message: ChapterTransitionMessage) => {
-    console.log('Handling chapter transition from server:', message);
-    
-    // Clear all optimistic updates since we have a new chapter
-    clearOptimisticUpdates();
+      // Update state with new chapter data
+      updateState({
+        currentChapter: message.data.newChapter,
+        voteCounts: message.data.newChapter.choices.map((choice) => ({
+          choiceId: choice.id,
+          count: 0,
+          percentage: 0,
+        })),
+        userVoteStatus: { hasVoted: false },
+        votingActive: true,
+      });
 
-    // Update state with new chapter data
-    updateState({
-      currentChapter: message.data.newChapter,
-      voteCounts: message.data.newChapter.choices.map(choice => ({
-        choiceId: choice.id,
-        count: 0,
-        percentage: 0
-      })),
-      userVoteStatus: { hasVoted: false },
-      votingActive: true
-    });
-  }, [updateState, clearOptimisticUpdates]);
+      console.log('✅ Chapter transition applied to state');
+    },
+    [updateState, clearOptimisticUpdates]
+  );
 
-  const handleStoryReset = useCallback((message: StoryResetMessage) => {
-    console.log('Handling story reset from server:', message);
-    
-    // Clear all optimistic updates
-    clearOptimisticUpdates();
+  const handleStoryReset = useCallback(
+    (message: StoryResetMessage) => {
+      console.log('Handling story reset from server:', message);
 
-    // Reset to initial chapter
-    updateState({
-      currentChapter: message.data.newChapter,
-      context: null,
-      voteCounts: message.data.newChapter.choices.map(choice => ({
-        choiceId: choice.id,
-        count: 0,
-        percentage: 0
-      })),
-      userVoteStatus: { hasVoted: false },
-      votingActive: true
-    });
-  }, [updateState, clearOptimisticUpdates]);
+      // Clear all optimistic updates
+      clearOptimisticUpdates();
 
-  const handleVotingEnded = useCallback((message: VotingEndedMessage) => {
-    console.log('Handling voting ended from server:', message);
-    
-    // Clear optimistic updates for this chapter
-    const updatesToRemove: string[] = [];
-    optimisticUpdatesRef.current.forEach((update, id) => {
-      if (update.type === 'vote' && update.data.chapterId === message.data.chapterId) {
-        updatesToRemove.push(id);
-      }
-    });
-    
-    updatesToRemove.forEach(id => {
-      optimisticUpdatesRef.current.delete(id);
-    });
-    setHasOptimisticUpdates(optimisticUpdatesRef.current.size > 0);
+      // Reset to initial chapter
+      updateState({
+        currentChapter: message.data.newChapter,
+        context: null,
+        voteCounts: message.data.newChapter.choices.map((choice) => ({
+          choiceId: choice.id,
+          count: 0,
+          percentage: 0,
+        })),
+        userVoteStatus: { hasVoted: false },
+        votingActive: true,
+      });
+    },
+    [updateState, clearOptimisticUpdates]
+  );
 
-    // Update voting status
-    updateState({
-      votingActive: false
-    });
-  }, [updateState]);
+  const handleVotingEnded = useCallback(
+    (message: VotingEndedMessage) => {
+      console.log('Handling voting ended from server:', message);
+
+      // Clear optimistic updates for this chapter
+      const updatesToRemove: string[] = [];
+      optimisticUpdatesRef.current.forEach((update, id) => {
+        if (update.type === 'vote' && update.data.chapterId === message.data.chapterId) {
+          updatesToRemove.push(id);
+        }
+      });
+
+      updatesToRemove.forEach((id) => {
+        optimisticUpdatesRef.current.delete(id);
+      });
+      setHasOptimisticUpdates(optimisticUpdatesRef.current.size > 0);
+
+      // Update voting status
+      updateState({
+        votingActive: false,
+      });
+    },
+    [updateState]
+  );
 
   return {
     state,
@@ -258,6 +265,6 @@ export const useSynchronizedState = (
     applyOptimisticUpdate,
     rollbackOptimisticUpdate,
     clearOptimisticUpdates,
-    hasOptimisticUpdates
+    hasOptimisticUpdates,
   };
 };

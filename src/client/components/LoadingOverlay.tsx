@@ -13,19 +13,20 @@ interface LoadingOverlayProps {
 
 export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
   className = '',
-  maxVisible = 3
+  maxVisible = 3,
 }) => {
   const { loadingStates } = useLoading();
 
   // Filter and sort loading states
   const activeStates = loadingStates
-    .filter(state => 
-      state.type === 'loading' || 
-      state.type === 'processing' || 
-      state.type === 'saving' || 
-      state.type === 'connecting' ||
-      state.type === 'error' ||
-      state.type === 'success'
+    .filter(
+      (state) =>
+        state.type === 'loading' ||
+        state.type === 'processing' ||
+        state.type === 'saving' ||
+        state.type === 'connecting' ||
+        state.type === 'error' ||
+        state.type === 'success'
     )
     .sort((a, b) => {
       // Prioritize errors and success messages
@@ -33,7 +34,7 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       if (b.type === 'error' && a.type !== 'error') return 1;
       if (a.type === 'success' && b.type !== 'success') return -1;
       if (b.type === 'success' && a.type !== 'success') return 1;
-      
+
       // Then by start time (newest first)
       return b.startTime.getTime() - a.startTime.getTime();
     })
@@ -48,25 +49,25 @@ export const LoadingOverlay: React.FC<LoadingOverlayProps> = ({
       <div className="loading-overlay-backdrop" />
       <div className="loading-overlay-content">
         {activeStates.map((state, index) => (
-          <div 
-            key={state.id} 
+          <div
+            key={state.id}
             className={`loading-state-item ${state.type}`}
-            style={{ 
+            style={{
               animationDelay: `${index * 100}ms`,
-              zIndex: 1000 - index 
+              zIndex: 1000 - index,
             }}
           >
             <LoadingSpinner
               message={state.message}
-              progress={state.progress}
+              progress={state.progress ?? 0}
               type={state.type}
               size="medium"
               showElapsedTime={state.type === 'loading' || state.type === 'processing'}
-              timeout={state.timeout}
+              timeout={state.timeout ?? 0}
             />
           </div>
         ))}
-        
+
         {loadingStates.length > maxVisible && (
           <div className="loading-overflow-indicator">
             <span className="horror-text text-sm opacity-75">
@@ -92,11 +93,7 @@ export const InlineLoadingIndicator: React.FC<{
         <div className="dot" />
         <div className="dot" />
       </div>
-      {message && (
-        <span className="loading-text horror-text text-sm opacity-75">
-          {message}
-        </span>
-      )}
+      {message && <span className="loading-text horror-text text-sm opacity-75">{message}</span>}
     </div>
   );
 };
@@ -112,25 +109,25 @@ export const ConnectionStatusIndicator: React.FC<{
         return {
           icon: '🟢',
           text: 'Connected',
-          color: 'text-horror-green'
+          color: 'text-horror-green',
         };
       case 'connecting':
         return {
           icon: '🟡',
           text: 'Connecting...',
-          color: 'text-horror-orange'
+          color: 'text-horror-orange',
         };
       case 'disconnected':
         return {
           icon: '🔴',
           text: 'Disconnected',
-          color: 'text-horror-red'
+          color: 'text-horror-red',
         };
       case 'error':
         return {
           icon: '⚠️',
           text: 'Connection Error',
-          color: 'text-horror-red'
+          color: 'text-horror-red',
         };
     }
   };
@@ -140,12 +137,8 @@ export const ConnectionStatusIndicator: React.FC<{
   return (
     <div className={`connection-status-indicator ${status} ${className}`}>
       <span className="status-icon">{config.icon}</span>
-      <span className={`status-text horror-text text-sm ${config.color}`}>
-        {config.text}
-      </span>
-      {status === 'connecting' && (
-        <InlineLoadingIndicator size="small" />
-      )}
+      <span className={`status-text horror-text text-sm ${config.color}`}>{config.text}</span>
+      {status === 'connecting' && <InlineLoadingIndicator size="small" />}
     </div>
   );
 };

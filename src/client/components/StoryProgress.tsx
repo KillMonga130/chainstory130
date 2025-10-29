@@ -6,18 +6,16 @@ interface StoryProgressProps {
   className?: string;
 }
 
-export const StoryProgress: React.FC<StoryProgressProps> = ({ 
-  progression, 
-  className = '' 
-}) => {
-  const { totalChapters, currentPosition, progressPercentage, completedPaths, availablePaths } = progression;
+export const StoryProgress: React.FC<StoryProgressProps> = ({ progression, className = '' }) => {
+  const { totalChapters, currentPosition, progressPercentage, completedPaths, availablePaths } =
+    progression;
 
   const renderProgressDots = () => {
     const dots = [];
     for (let i = 0; i < totalChapters; i++) {
       const isActive = i === currentPosition;
       const isCompleted = i < currentPosition;
-      
+
       dots.push(
         <div
           key={i}
@@ -33,14 +31,9 @@ export const StoryProgress: React.FC<StoryProgressProps> = ({
     return (
       <div className="progress-bar-container">
         <div className="progress-bar-track">
-          <div 
-            className="progress-bar-fill"
-            style={{ width: `${progressPercentage}%` }}
-          />
+          <div className="progress-bar-fill" style={{ width: `${progressPercentage}%` }} />
         </div>
-        <div className="progress-percentage">
-          {progressPercentage}% Complete
-        </div>
+        <div className="progress-percentage">{progressPercentage}% Complete</div>
       </div>
     );
   };
@@ -52,14 +45,10 @@ export const StoryProgress: React.FC<StoryProgressProps> = ({
       </div>
 
       {/* Progress Bar */}
-      <div className="progress-section mb-6">
-        {renderProgressBar()}
-      </div>
+      <div className="progress-section mb-6">{renderProgressBar()}</div>
 
       {/* Progress Dots */}
-      <div className="progress-indicator">
-        {renderProgressDots()}
-      </div>
+      <div className="progress-indicator">{renderProgressDots()}</div>
 
       {/* Chapter Info */}
       <div className="chapter-info text-center mt-4">
@@ -74,7 +63,7 @@ export const StoryProgress: React.FC<StoryProgressProps> = ({
         <div className="path-info mt-6">
           <div className="horror-card">
             <h4 className="horror-text font-semibold mb-3 text-center">Narrative Paths</h4>
-            
+
             {completedPaths.length > 0 && (
               <div className="completed-paths mb-3">
                 <p className="horror-text text-xs mb-2 opacity-75">Paths Taken:</p>
@@ -103,9 +92,6 @@ export const StoryProgress: React.FC<StoryProgressProps> = ({
           </div>
         </div>
       )}
-
-      
     </div>
   );
 };
-

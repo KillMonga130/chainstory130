@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { navigateTo } from '@devvit/web/client';
-import { 
+import {
   StoryChapter,
   VotingInterface,
   StoryProgress,
@@ -11,7 +11,7 @@ import {
   ParticleEffects,
   Transition,
   AdminInterface,
-  ContentReportButton
+  ContentReportButton,
 } from './components/index';
 import { LoadingOverlay, ConnectionStatusIndicator } from './components/LoadingOverlay';
 import { useStory } from './hooks/useStory';
@@ -23,22 +23,15 @@ import { ModerationProvider, useModeration } from './contexts/ModerationContext'
 import { LoadingProvider } from './contexts/LoadingContext';
 import { ConnectionMonitor, ClientPerformanceMonitor } from './utils/error-handler';
 
-
 const AppContent = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showReplayInterface, setShowReplayInterface] = useState(false);
   const [postId] = useState('haunted-thread-demo'); // This should come from Devvit context
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminKeyInput, setAdminKeyInput] = useState('');
-  const [networkStatus, setNetworkStatus] = useState(ConnectionMonitor.getStatus());
-  
-  const { 
-    showAdminInterface, 
-    setShowAdminInterface, 
-    adminKey, 
-    setAdminKey,
-    moderationEnabled 
-  } = useModeration();
+
+  const { showAdminInterface, setShowAdminInterface, adminKey, setAdminKey, moderationEnabled } =
+    useModeration();
 
   const {
     currentChapter: storyChapter,
@@ -47,7 +40,7 @@ const AppContent = () => {
     votingActive: storyVotingActive,
     loading: storyLoading,
     error: storyError,
-    refreshStory
+    refreshStory,
   } = useStory();
 
   const {
@@ -55,7 +48,9 @@ const AppContent = () => {
     userVoteStatus: originalUserVoteStatus,
     loading: votingLoading,
     error: votingError,
-    castVote: originalCastVote
+    castVote: originalCastVote,
+    refreshVoteCounts,
+    refreshVoteStatus,
   } = useVoting();
 
   // Synchronized state management
@@ -68,22 +63,18 @@ const AppContent = () => {
     handleVotingEnded,
     applyOptimisticUpdate,
     rollbackOptimisticUpdate,
-    hasOptimisticUpdates
+    hasOptimisticUpdates,
   } = useSynchronizedState({
     currentChapter: storyChapter,
     context,
     voteCounts: originalVoteCounts,
     userVoteStatus: originalUserVoteStatus,
-    votingActive: storyVotingActive
+    votingActive: storyVotingActive,
   });
 
   // Concurrent interactions management
-  const {
-    isProcessing,
-    pendingActionsCount,
-    queueAction,
-    clearQueue
-  } = useConcurrentInteractions();
+  const { isProcessing, pendingActionsCount, queueAction, clearQueue } =
+    useConcurrentInteractions();
 
   // Use synchronized state values
   const currentChapter = syncState.currentChapter;
@@ -100,16 +91,47 @@ const AppContent = () => {
     onVotingEnded: handleVotingEnded,
     onError: (error) => {
       console.error('Realtime connection error:', error);
-    }
+    },
   });
+
+  // Fallback polling when realtime is not available
+  useEffect(() => {
+    if ((connectionStatus === 'disconnected' || connectionStatus === 'error') && currentChapter) {
+      console.log('Starting vote count polling as fallback for realtime');
+      const pollInterval = setInterval(() => {
+        console.log('Polling vote counts and status for chapter:', currentChapter.id);
+        refreshVoteCounts(currentChapter.id);
+        refreshVoteStatus(currentChapter.id);
+      }, 3000); // Poll every 3 seconds
+
+      return () => {
+        console.log('Stopping vote count polling');
+        clearInterval(pollInterval);
+      };
+    }
+  }, [connectionStatus, currentChapter, refreshVoteCounts, refreshVoteStatus]);
+
+  // Refresh vote data when chapter changes
+  useEffect(() => {
+    if (currentChapter) {
+      console.log('📖 Chapter changed to:', currentChapter.id);
+      console.log('🔄 Refreshing vote data for new chapter...');
+
+      // Clear any pending actions for the old chapter
+      clearQueue();
+
+      // Refresh vote data for the new chapter
+      refreshVoteCounts(currentChapter.id);
+      refreshVoteStatus(currentChapter.id);
+    }
+  }, [currentChapter?.id, refreshVoteCounts, refreshVoteStatus, clearQueue]);
 
   // Initialize performance monitoring and connection monitoring
   useEffect(() => {
     const stopTimer = ClientPerformanceMonitor.startTimer('app_initialization');
-    
+
     // Set up connection monitoring
     const unsubscribe = ConnectionMonitor.addListener((online) => {
-      setNetworkStatus(online);
       if (!online) {
         console.warn('Network connection lost');
       } else {
@@ -119,9 +141,9 @@ const AppContent = () => {
 
     // Performance monitoring - log app startup
     ClientPerformanceMonitor.recordMetric('app_startup', performance.now(), false);
-    
+
     stopTimer();
-    
+
     return () => {
       unsubscribe();
     };
@@ -132,52 +154,59 @@ const AppContent = () => {
     updateSyncState({
       currentChapter: storyChapter,
       context,
-      votingActive: storyVotingActive
+      votingActive: storyVotingActive,
     });
   }, [storyChapter, context, storyVotingActive, updateSyncState]);
 
   useEffect(() => {
     updateSyncState({
       voteCounts: originalVoteCounts,
-      userVoteStatus: originalUserVoteStatus
+      userVoteStatus: originalUserVoteStatus,
     });
   }, [originalVoteCounts, originalUserVoteStatus, updateSyncState]);
 
   // Enhanced vote handler with optimistic updates and concurrent interaction management
   const handleVote = async (choiceId: string) => {
     if (!currentChapter) return;
-    
-    try {
-      await queueAction(
-        'vote',
-        { chapterId: currentChapter.id, choiceId },
-        async () => {
-          // Apply optimistic update
-          const optimisticUpdateId = `vote_${currentChapter.id}_${choiceId}_${Date.now()}`;
-          
-          applyOptimisticUpdate({
-            id: optimisticUpdateId,
-            type: 'vote',
-            data: { chapterId: currentChapter.id, choiceId },
-            rollback: () => {
-              // Rollback logic would restore previous state
-              console.log('Rolling back optimistic vote update');
-            }
-          });
 
-          try {
-            // Execute the actual vote
-            await originalCastVote(currentChapter.id, choiceId);
-            
-            // The optimistic update will be cleared when the server response comes through realtime
-            return { success: true };
-          } catch (error) {
-            // Rollback optimistic update on error
-            rollbackOptimisticUpdate(optimisticUpdateId);
-            throw error;
-          }
+    console.log('Attempting to cast vote:', { chapterId: currentChapter.id, choiceId });
+
+    try {
+      await queueAction('vote', { chapterId: currentChapter.id, choiceId }, async () => {
+        // Apply optimistic update
+        const optimisticUpdateId = `vote_${currentChapter.id}_${choiceId}_${Date.now()}`;
+
+        applyOptimisticUpdate({
+          id: optimisticUpdateId,
+          type: 'vote',
+          data: { chapterId: currentChapter.id, choiceId },
+          rollback: () => {
+            // Rollback logic would restore previous state
+            console.log('Rolling back optimistic vote update');
+          },
+        });
+
+        try {
+          // Execute the actual vote
+          console.log('Calling originalCastVote...');
+          await originalCastVote(currentChapter.id, choiceId);
+          console.log('Vote cast successfully!');
+
+          // Refresh vote counts immediately since realtime might not be working
+          setTimeout(() => {
+            console.log('Refreshing vote counts after vote...');
+            refreshVoteCounts(currentChapter.id);
+          }, 1000);
+
+          // The optimistic update will be cleared when the server response comes through realtime
+          return { success: true };
+        } catch (error) {
+          console.error('Error in originalCastVote:', error);
+          // Rollback optimistic update on error
+          rollbackOptimisticUpdate(optimisticUpdateId);
+          throw error;
         }
-      );
+      });
     } catch (error) {
       console.error('Failed to cast vote:', error);
     }
@@ -189,12 +218,12 @@ const AppContent = () => {
     updateSyncState({
       currentChapter: chapter,
       context: context,
-      votingActive: true
+      votingActive: true,
     });
-    
+
     // Refresh the story to ensure consistency
     refreshStory();
-    
+
     // Close the replay interface
     setShowReplayInterface(false);
   };
@@ -203,8 +232,8 @@ const AppContent = () => {
   if (storyLoading && !currentChapter) {
     return (
       <div className="story-container">
-        <LoadingSpinner 
-          message="Loading The Haunted Thread..." 
+        <LoadingSpinner
+          message="Loading The Haunted Thread..."
           size="large"
           className="horror-pulse"
         />
@@ -221,10 +250,7 @@ const AppContent = () => {
             <div className="text-6xl mb-4">💀</div>
             <h2 className="horror-subtitle">The Darkness Consumed the Story</h2>
             <p className="horror-text mb-6">{storyError}</p>
-            <button 
-              className="horror-button"
-              onClick={refreshStory}
-            >
+            <button className="horror-button" onClick={refreshStory}>
               🔄 Try Again
             </button>
           </div>
@@ -252,10 +278,7 @@ const AppContent = () => {
       <div className="story-container">
         {/* Admin Interface */}
         {showAdminInterface && adminKey && (
-          <AdminInterface 
-            adminKey={adminKey} 
-            onClose={handleAdminLogout}
-          />
+          <AdminInterface adminKey={adminKey} onClose={handleAdminLogout} />
         )}
 
         {/* Story Replay Interface */}
@@ -277,7 +300,7 @@ const AppContent = () => {
                   type="password"
                   value={adminKeyInput}
                   onChange={(e) => setAdminKeyInput(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAdminLogin()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAdminLogin()}
                   placeholder="Enter admin key"
                   autoFocus
                 />
@@ -286,9 +309,7 @@ const AppContent = () => {
                 <button onClick={handleAdminLogin} disabled={!adminKeyInput.trim()}>
                   Login
                 </button>
-                <button onClick={() => setShowAdminLogin(false)}>
-                  Cancel
-                </button>
+                <button onClick={() => setShowAdminLogin(false)}>Cancel</button>
               </div>
             </div>
           </div>
@@ -297,7 +318,7 @@ const AppContent = () => {
         {/* Atmospheric Particle Effects */}
         <ParticleEffects type="fog" intensity="low" />
         <ParticleEffects type="shadows" intensity="medium" />
-        
+
         {/* Story Header */}
         <Transition type="horror-fade" delay={200}>
           <div className="story-header">
@@ -305,21 +326,21 @@ const AppContent = () => {
             <p className="horror-text text-center opacity-75 eerie-sway">
               A community-driven horror experience where your choices shape the nightmare...
             </p>
-            
+
             {/* Control Buttons */}
             <div className="story-controls">
               {/* Story Replay Button */}
-              <button 
+              <button
                 onClick={() => setShowReplayInterface(true)}
                 className="story-control-button"
                 title="Story Management & Replay"
               >
                 🔄
               </button>
-              
+
               {/* Admin Access Button */}
               {!showAdminInterface ? (
-                <button 
+                <button
                   onClick={() => setShowAdminLogin(true)}
                   className="story-control-button admin-access-button"
                   title="Administrator Access"
@@ -327,7 +348,7 @@ const AppContent = () => {
                   ⚙️
                 </button>
               ) : (
-                <button 
+                <button
                   onClick={handleAdminLogout}
                   className="story-control-button admin-access-button active"
                   title="Exit Admin Mode"
@@ -350,11 +371,8 @@ const AppContent = () => {
         {currentChapter && (
           <Transition type="chapter-transition" delay={600}>
             <div className="chapter-container">
-              <StoryChapter 
-                chapter={currentChapter}
-                className="horror-entrance shadow-dance"
-              />
-              
+              <StoryChapter chapter={currentChapter} className="horror-entrance shadow-dance" />
+
               {/* Content Moderation */}
               {moderationEnabled && (
                 <div className="chapter-moderation">
@@ -384,14 +402,46 @@ const AppContent = () => {
           </Transition>
         )}
 
+        {/* Story Reset Button */}
+        <div className="text-center mt-6 mb-4">
+          <button
+            className="horror-button-small opacity-50 hover:opacity-100 transition-opacity"
+            onClick={async () => {
+              const adminKey = prompt('Enter admin key to reset story:');
+              if (!adminKey) return;
+
+              try {
+                const response = await fetch('/api/admin/reset', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    adminKey,
+                    reason: 'Manual reset from UI',
+                  }),
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                  alert('Story reset successfully! Refreshing...');
+                  window.location.reload();
+                } else {
+                  alert('Reset failed: ' + result.message);
+                }
+              } catch (error) {
+                alert('Error resetting story: ' + error);
+              }
+            }}
+            title="Reset story to beginning (requires admin key)"
+          >
+            🔄 Reset Story
+          </button>
+        </div>
+
         {/* Enhanced Connection Status */}
         <Transition type="horror-fade">
           <div className="connection-status-container">
-            <ConnectionStatusIndicator 
-              status={connectionStatus}
-              className="mb-4"
-            />
-            
+            <ConnectionStatusIndicator status={connectionStatus} className="mb-4" />
+
             {/* Network status monitoring */}
             {!ConnectionMonitor.getStatus() && (
               <div className="horror-card text-center mt-2">
@@ -403,31 +453,29 @@ const AppContent = () => {
                 </div>
               </div>
             )}
-            
+
             {connectionStatus === 'disconnected' && (
               <div className="horror-card text-center mt-2">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="text-horror-red">⚠️</span>
-                  <span className="horror-text text-horror-red">Connection to the spirit realm lost</span>
-                  <button 
-                    className="horror-button-small ml-2"
-                    onClick={reconnect}
-                  >
-                    Reconnect
+                  <span className="text-horror-orange">🔄</span>
+                  <span className="horror-text text-horror-orange text-sm">
+                    Live updates unavailable - using polling mode
+                  </span>
+                  <button className="horror-button-small ml-2" onClick={reconnect}>
+                    Retry Live Updates
                   </button>
                 </div>
               </div>
             )}
-            
+
             {connectionStatus === 'error' && (
               <div className="horror-card text-center mt-2">
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-horror-red">💀</span>
-                  <span className="horror-text text-horror-red">The spirits are not responding</span>
-                  <button 
-                    className="horror-button-small ml-2"
-                    onClick={reconnect}
-                  >
+                  <span className="horror-text text-horror-red">
+                    The spirits are not responding
+                  </span>
+                  <button className="horror-button-small ml-2" onClick={reconnect}>
                     Try Again
                   </button>
                 </div>
@@ -443,7 +491,8 @@ const AppContent = () => {
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-pulse w-3 h-3 bg-horror-orange rounded-full"></div>
                 <span className="horror-text text-horror-orange text-sm">
-                  {isProcessing && `Processing ${pendingActionsCount} action${pendingActionsCount !== 1 ? 's' : ''}...`}
+                  {isProcessing &&
+                    `Processing ${pendingActionsCount} action${pendingActionsCount !== 1 ? 's' : ''}...`}
                   {hasOptimisticUpdates && !isProcessing && 'Syncing with other spirits...'}
                 </span>
               </div>
@@ -455,11 +504,9 @@ const AppContent = () => {
         {(votingError || storyError) && (
           <Transition type="horror-fade">
             <div className="horror-card text-center mt-6 shake-animation">
-              <p className="horror-text text-horror-red">
-                {votingError || storyError}
-              </p>
+              <p className="horror-text text-horror-red">{votingError || storyError}</p>
               {(votingError || storyError) && (
-                <button 
+                <button
                   className="horror-button-small mt-2"
                   onClick={() => {
                     clearQueue();
@@ -478,7 +525,7 @@ const AppContent = () => {
           <StoryHistory
             path={{
               chapters: context.pathTaken,
-              decisions: context.previousChoices
+              decisions: context.previousChoices,
             }}
             chapters={[]} // This would be populated from history API
             decisions={[]} // This would be populated from history API

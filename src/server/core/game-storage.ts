@@ -28,12 +28,12 @@ class HalloweenGameStorage {
   createGame(gameState: GameState, config: GameConfig, username?: string): string {
     const gameId = this.generateGameId();
     const now = Date.now();
-    
+
     this.games.set(gameId, {
       gameId,
       gameState,
       config,
-      username,
+      username: username || '',
       createdAt: now,
       lastActivity: now,
     });
@@ -90,11 +90,13 @@ class HalloweenGameStorage {
     }
 
     // Find rank of this entry
-    const rank = this.leaderboard.findIndex(e => 
-      e.username === entry.username && 
-      e.score === entry.score && 
-      e.timestamp === entry.timestamp
-    ) + 1;
+    const rank =
+      this.leaderboard.findIndex(
+        (e) =>
+          e.username === entry.username &&
+          e.score === entry.score &&
+          e.timestamp === entry.timestamp
+      ) + 1;
 
     console.log(`👻 New score added: ${username} scored ${score} (rank #${rank})`);
     return rank;
@@ -111,15 +113,19 @@ class HalloweenGameStorage {
       activeGames: this.games.size,
       totalScores: this.leaderboard.length,
       topScore: this.leaderboard[0]?.score || 0,
-      averageLevel: this.leaderboard.length > 0 
-        ? Math.round(this.leaderboard.reduce((sum, entry) => sum + entry.level, 0) / this.leaderboard.length)
-        : 0,
+      averageLevel:
+        this.leaderboard.length > 0
+          ? Math.round(
+              this.leaderboard.reduce((sum, entry) => sum + entry.level, 0) /
+                this.leaderboard.length
+            )
+          : 0,
     };
   }
 
   // Clean up inactive games (older than 30 minutes of inactivity)
   cleanupInactiveGames(): number {
-    const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000);
+    const thirtyMinutesAgo = Date.now() - 30 * 60 * 1000;
     let cleaned = 0;
 
     for (const [gameId, game] of this.games.entries()) {
@@ -145,6 +151,9 @@ class HalloweenGameStorage {
 export const halloweenStorage = new HalloweenGameStorage();
 
 // Auto-cleanup every 15 minutes
-setInterval(() => {
-  halloweenStorage.cleanupInactiveGames();
-}, 15 * 60 * 1000);
+setInterval(
+  () => {
+    halloweenStorage.cleanupInactiveGames();
+  },
+  15 * 60 * 1000
+);

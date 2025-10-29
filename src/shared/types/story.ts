@@ -136,7 +136,7 @@ export class StoryValidator {
    * Validates a story chapter for completeness and integrity
    */
   static validateChapter(
-    chapter: StoryChapter, 
+    chapter: StoryChapter,
     options: StoryValidationOptions = {}
   ): ValidationResult {
     const errors: string[] = [];
@@ -168,14 +168,16 @@ export class StoryValidator {
         }
 
         if (chapter.choices.length > maxChoices) {
-          warnings.push(`Chapter has ${chapter.choices.length} choices, consider reducing to ${maxChoices} or fewer`);
+          warnings.push(
+            `Chapter has ${chapter.choices.length} choices, consider reducing to ${maxChoices} or fewer`
+          );
         }
 
         // Validate each choice
         chapter.choices.forEach((choice, index) => {
           const choiceErrors = this.validateChoice(choice);
           if (!choiceErrors.isValid) {
-            errors.push(...choiceErrors.errors.map(err => `Choice ${index + 1}: ${err}`));
+            errors.push(...choiceErrors.errors.map((err) => `Choice ${index + 1}: ${err}`));
           }
         });
       }
@@ -201,7 +203,7 @@ export class StoryValidator {
 
     const result: ValidationResult = {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
 
     if (warnings.length > 0) {
@@ -231,7 +233,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -260,7 +262,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -271,7 +273,7 @@ export class StoryValidator {
     const errors: string[] = [];
     const requiredColors = ['primary', 'secondary', 'background', 'text', 'accent', 'danger'];
 
-    requiredColors.forEach(color => {
+    requiredColors.forEach((color) => {
       const colorValue = scheme[color as keyof HorrorColorScheme];
       if (!colorValue || typeof colorValue !== 'string') {
         errors.push(`${color} color is required`);
@@ -282,7 +284,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -318,7 +320,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -342,7 +344,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -356,7 +358,10 @@ export class StoryValidator {
       errors.push('Total chapters must be greater than 0');
     }
 
-    if (progression.currentPosition < 0 || progression.currentPosition > progression.totalChapters) {
+    if (
+      progression.currentPosition < 0 ||
+      progression.currentPosition > progression.totalChapters
+    ) {
       errors.push('Current position must be between 0 and total chapters');
     }
 
@@ -366,7 +371,7 @@ export class StoryValidator {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -378,12 +383,25 @@ export class StoryValidator {
     const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
     const rgbPattern = /^rgb\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*\)$/;
     const rgbaPattern = /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*(0|1|0?\.\d+)\s*\)$/;
-    const namedColors = ['black', 'white', 'red', 'green', 'blue', 'yellow', 'purple', 'orange', 'gray', 'grey'];
+    const namedColors = [
+      'black',
+      'white',
+      'red',
+      'green',
+      'blue',
+      'yellow',
+      'purple',
+      'orange',
+      'gray',
+      'grey',
+    ];
 
-    return hexPattern.test(color) || 
-           rgbPattern.test(color) || 
-           rgbaPattern.test(color) || 
-           namedColors.includes(color.toLowerCase());
+    return (
+      hexPattern.test(color) ||
+      rgbPattern.test(color) ||
+      rgbaPattern.test(color) ||
+      namedColors.includes(color.toLowerCase())
+    );
   }
 }
 
@@ -401,7 +419,7 @@ export class StoryUtils {
       votingStartTime: now,
       totalVotes: 0,
       status: 'active',
-      pathPosition: 0
+      pathPosition: 0,
     };
 
     return { ...defaultMetadata, ...overrides };
@@ -414,12 +432,12 @@ export class StoryUtils {
     const defaultElements: VisualElements = {
       atmosphericEffects: ['fog', 'shadows'],
       colorScheme: {
-        primary: '#8B0000',      // Dark red
-        secondary: '#2F2F2F',    // Dark gray
-        background: '#0D0D0D',   // Almost black
-        text: '#E0E0E0',         // Light gray
-        accent: '#FF6B6B',       // Bright red
-        danger: '#FF0000'        // Pure red
+        primary: '#8B0000', // Dark red
+        secondary: '#2F2F2F', // Dark gray
+        background: '#0D0D0D', // Almost black
+        text: '#E0E0E0', // Light gray
+        accent: '#FF6B6B', // Bright red
+        danger: '#FF0000', // Pure red
       },
       typography: {
         fontFamily: 'serif',
@@ -429,10 +447,10 @@ export class StoryUtils {
           small: '0.875rem',
           medium: '1rem',
           large: '1.25rem',
-          xlarge: '1.5rem'
-        }
+          xlarge: '1.5rem',
+        },
       },
-      animations: []
+      animations: [],
     };
 
     return { ...defaultElements, ...overrides };

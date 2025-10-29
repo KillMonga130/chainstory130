@@ -12,8 +12,9 @@ export const createPost = async () => {
       appDisplayName: 'Pumpkin Collector',
       backgroundUri: 'default-splash.png',
       buttonLabel: '🎃 Start Collecting!',
-      description: 'Help the friendly ghost collect pumpkins while avoiding spooky monsters! Use WASD or arrow keys to move.',
-      entryUri: 'index.html',
+      description:
+        'Help the friendly ghost collect pumpkins while avoiding spooky monsters! Use WASD or arrow keys to move.',
+      entry: 'index.html',
       heading: '👻 Halloween Pumpkin Collector 🎃',
       appIconUri: 'default-icon.png',
     },

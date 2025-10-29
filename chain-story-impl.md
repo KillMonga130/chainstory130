@@ -96,48 +96,49 @@
 # Chain Story: Technical Design
 
 ## Architecture
+```
 
-```
 ┌─────────────────────────────────────────────────────┐
-│            Devvit Web Frontend (React)              │
-│  - Story display component                          │
-│  - Sentence submission form                         │
-│  - Leaderboard viewer                               │
-│  - Archive browser                                  │
+│ Devvit Web Frontend (React) │
+│ - Story display component │
+│ - Sentence submission form │
+│ - Leaderboard viewer │
+│ - Archive browser │
 └──────────────┬──────────────────────────────────────┘
-               │
+│
 ┌──────────────┴──────────────────────────────────────┐
-│         Devvit Real-Time Channel                    │
-│  - ONE channel for all story updates                │
-│  - Message format: {storyId, roundNumber, newSent}  │
+│ Devvit Real-Time Channel │
+│ - ONE channel for all story updates │
+│ - Message format: {storyId, roundNumber, newSent} │
 └──────────────┬──────────────────────────────────────┘
-               │
+│
 ┌──────────────┴──────────────────────────────────────┐
-│    Devvit Server Logic (TypeScript)                 │
-│  - Scheduled job: Every hour at :00                 │
-│    1. Fetch top comment from past hour              │
-│    2. Append to story state                         │
-│    3. Reset voting round                            │
-│  - Scheduled job: Every day at 00:00 UTC            │
-│    1. Archive completed story                       │
-│    2. Create new blank story                        │
+│ Devvit Server Logic (TypeScript) │
+│ - Scheduled job: Every hour at :00 │
+│ 1. Fetch top comment from past hour │
+│ 2. Append to story state │
+│ 3. Reset voting round │
+│ - Scheduled job: Every day at 00:00 UTC │
+│ 1. Archive completed story │
+│ 2. Create new blank story │
 └──────────────┬──────────────────────────────────────┘
-               │
+│
 ┌──────────────┴──────────────────────────────────────┐
-│         Redis KV Store                              │
-│  - stories:current → {sentences[], roundNum}        │
-│  - stories:archive → {completed stories}            │
-│  - rounds:hourly → {timestamp, top_comment_id}      │
-│  - users:submissions → {userId → submitted_ids}     │
+│ Redis KV Store │
+│ - stories:current → {sentences[], roundNum} │
+│ - stories:archive → {completed stories} │
+│ - rounds:hourly → {timestamp, top_comment_id} │
+│ - users:submissions → {userId → submitted_ids} │
 └──────────────┬──────────────────────────────────────┘
-               │
+│
 ┌──────────────┴──────────────────────────────────────┐
-│         Reddit API                                  │
-│  - Comments: Fetch top comment via API              │
-│  - Post: Update story in post body                  │
-│  - Rate limit: 100 QPM (comfortable headroom)       │
+│ Reddit API │
+│ - Comments: Fetch top comment via API │
+│ - Post: Update story in post body │
+│ - Rate limit: 100 QPM (comfortable headroom) │
 └─────────────────────────────────────────────────────┘
-```
+
+````
 
 ## Tech Stack Decision
 
@@ -177,13 +178,14 @@ interface Round {
     sentence: string;
   };
 }
-```
+````
 
 ## Rate Limiting Strategy
 
 **Reddit API Limit:** 100 QPM authenticated
 
 **Our Usage:**
+
 - Hour boundary: 1 call (fetch comments)
 - Day boundary: 1 call (archive story)
 - User submissions: Handled via comments (not API calls)
@@ -196,6 +198,7 @@ interface Round {
 **Problem:** Devvit limit = 5 channels per app installation
 
 **Solution:** Use 1 global channel
+
 ```typescript
 // Message format on real-time channel
 {
@@ -208,7 +211,8 @@ interface Round {
 ```
 
 This avoids creating separate channel per story.
-```
+
+````
 
 ### **1.3 Tasks.md (20 Concrete Tasks)**
 
@@ -393,7 +397,7 @@ This avoids creating separate channel per story.
     }
   }
 }
-```
+````
 
 ### **2.2 Redis Schema Design**
 
@@ -401,7 +405,7 @@ This avoids creating separate channel per story.
 // src/redis-schema.ts
 
 interface StorySchema {
-  "stories:current": {
+  'stories:current': {
     id: string;
     created: number; // timestamp
     sentences: string[]; // { "0": "Once...", "1": "A..." }
@@ -411,11 +415,11 @@ interface StorySchema {
     contributors: string[]; // unique usernames
   };
 
-  "stories:archive": {
+  'stories:archive': {
     [key: string]: StorySchema; // storyId -> archived story
   };
 
-  "rounds:hourly": {
+  'rounds:hourly': {
     [key: string]: {
       timestamp: number;
       top_comment_id: string;
@@ -424,11 +428,11 @@ interface StorySchema {
     };
   };
 
-  "users:submissions": {
+  'users:submissions': {
     [key: string]: string[]; // userId -> [commentIds submitted]
   };
 
-  "leaderboard:top": {
+  'leaderboard:top': {
     [key: string]: {
       storyId: string;
       totalVotes: number;
@@ -444,21 +448,21 @@ interface StorySchema {
 **File: src/main.tsx**
 
 ```typescript
-import { Devvit, SchedulerJob } from "@devvit/public-api";
-import { createClient } from "@devvit/public-api";
+import { Devvit, SchedulerJob } from '@devvit/public-api';
+import { createClient } from '@devvit/public-api';
 
 const redis = createClient();
 
 Devvit.addSchedulerJob({
-  name: "job_hourly_round",
+  name: 'job_hourly_round',
   onRun: async (event) => {
-    console.log("⏰ Hourly round resolution triggered");
-    
+    console.log('⏰ Hourly round resolution triggered');
+
     try {
       // 1. Get current story
-      const story = await redis.get("stories:current");
+      const story = await redis.get('stories:current');
       if (!story) {
-        console.log("No active story, creating new");
+        console.log('No active story, creating new');
         await createNewStory();
         return;
       }
@@ -468,10 +472,10 @@ Devvit.addSchedulerJob({
       // 2. Fetch all comments from past hour
       // Using Reddit API (you implement this)
       const comments = await fetchCommentsFromPastHour();
-      
+
       if (comments.length === 0) {
-        console.log("No submissions this hour, using fallback");
-        storyObj.sentences.push("The silence grew...");
+        console.log('No submissions this hour, using fallback');
+        storyObj.sentences.push('The silence grew...');
       } else {
         // 3. Find top voted comment
         const topComment = comments.reduce((prev, current) =>
@@ -487,60 +491,56 @@ Devvit.addSchedulerJob({
 
       // 5. Check if story complete
       if (storyObj.sentences.length >= 100) {
-        storyObj.status = "completed";
+        storyObj.status = 'completed';
         await redis.set(`stories:archive:${storyObj.id}`, JSON.stringify(storyObj));
-        await redis.del("stories:current");
+        await redis.del('stories:current');
         await createNewStory();
-        console.log("✅ Story completed and archived");
+        console.log('✅ Story completed and archived');
       } else {
         // 6. Increment round, save
         storyObj.roundNumber++;
-        await redis.set("stories:current", JSON.stringify(storyObj));
+        await redis.set('stories:current', JSON.stringify(storyObj));
         console.log(`✅ Round ${storyObj.roundNumber} completed`);
       }
 
       // 7. Broadcast update via real-time
       // (implementation below)
-
     } catch (error) {
-      console.error("❌ Hourly job error:", error);
+      console.error('❌ Hourly job error:', error);
     }
-  }
+  },
 });
 
 Devvit.addSchedulerJob({
-  name: "job_daily_archival",
+  name: 'job_daily_archival',
   onRun: async (event) => {
-    console.log("📅 Daily archival check triggered");
-    
-    const story = await redis.get("stories:current");
+    console.log('📅 Daily archival check triggered');
+
+    const story = await redis.get('stories:current');
     if (story) {
       const storyObj = JSON.parse(story);
       if (storyObj.sentences.length > 0) {
         // Mark as archived for end-of-day storage
-        await redis.set(
-          `stories:archive:${storyObj.id}`,
-          JSON.stringify(storyObj)
-        );
-        console.log("✅ Story archived for permanent storage");
+        await redis.set(`stories:archive:${storyObj.id}`, JSON.stringify(storyObj));
+        console.log('✅ Story archived for permanent storage');
       }
     }
-  }
+  },
 });
 
 async function createNewStory() {
   const newStory = {
     id: `story_${Date.now()}`,
     created: Date.now(),
-    sentences: ["In a land far away..."],
+    sentences: ['In a land far away...'],
     roundNumber: 1,
     totalVotes: 0,
-    status: "active" as const,
-    contributors: []
+    status: 'active' as const,
+    contributors: [],
   };
-  
-  await redis.set("stories:current", JSON.stringify(newStory));
-  console.log("✅ New story created:", newStory.id);
+
+  await redis.set('stories:current', JSON.stringify(newStory));
+  console.log('✅ New story created:', newStory.id);
 }
 
 function isValidSentence(text: string): boolean {
@@ -564,16 +564,16 @@ export default Devvit;
 **File: src/realtime.ts**
 
 ```typescript
-import { Devvit } from "@devvit/public-api";
+import { Devvit } from '@devvit/public-api';
 
 export const setupRealtimeChannel = (context: Devvit.Context) => {
   const channel = context.realtime.subscribeToChannel({
-    name: "story-updates"
+    name: 'story-updates',
   });
 
   // Listen for messages
   channel.onMessage(async (message: any) => {
-    console.log("📨 Real-time message:", message);
+    console.log('📨 Real-time message:', message);
     // Handled on client side
   });
 
@@ -581,11 +581,11 @@ export const setupRealtimeChannel = (context: Devvit.Context) => {
   return {
     broadcastUpdate: async (payload: any) => {
       channel.send({
-        type: "story-update",
+        type: 'story-update',
         payload,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
-    }
+    },
   };
 };
 ```
@@ -601,23 +601,21 @@ export async function postCommentToThread(
   roundNumber: number
 ) {
   const postId = context.postId!;
-  
+
   const comment = await context.reddit.submitComment({
     id: postId,
-    text: `**[Round ${roundNumber}]** ${sentence}\n\n---\n*Submitted via Chain Story*`
+    text: `**[Round ${roundNumber}]** ${sentence}\n\n---\n*Submitted via Chain Story*`,
   });
 
   return comment.id;
 }
 
-export async function getCommentsFromPastHour(
-  context: Devvit.Context
-): Promise<any[]> {
+export async function getCommentsFromPastHour(context: Devvit.Context): Promise<any[]> {
   const post = await context.reddit.getPostById(context.postId!);
-  
+
   // Get all comments sorted by top
   const comments = await post.comments.all();
-  
+
   // Filter to past hour
   const oneHourAgo = Date.now() / 1000 - 3600;
   const recentComments = comments.filter(
@@ -741,7 +739,7 @@ export function StoryDisplay({ story }: { story: any }) {
   return (
     <div style={styles.container}>
       <h2>Current Story (Round {story.roundNumber})</h2>
-      
+
       <div style={styles.storyBox}>
         {story.sentences.map((sentence: string, index: number) => (
           <div key={index}>
@@ -882,7 +880,7 @@ export function SubmissionForm({
   return (
     <form onSubmit={handleSubmit} style={styles.form}>
       <h3>Submit Your Sentence</h3>
-      
+
       <textarea
         value={sentence}
         onChange={(e) => setSentence(e.target.value)}
@@ -1049,6 +1047,7 @@ const styles = {
 ## Test Checklist
 
 ### Functional Tests
+
 - [ ] Create new story at start
 - [ ] Submit sentence via form → posted as comment
 - [ ] Hourly job fetches top comment
@@ -1060,6 +1059,7 @@ const styles = {
 - [ ] UI updates when real-time message received
 
 ### Edge Cases
+
 - [ ] No submissions in hour → fallback sentence used
 - [ ] Identical vote count → first submission wins
 - [ ] Offensive comment → upvotes filter it
@@ -1068,6 +1068,7 @@ const styles = {
 - [ ] Network disconnect → reconnect and sync state
 
 ### Performance Tests
+
 - [ ] Page load: <2 seconds
 - [ ] Form submission: <1 second response
 - [ ] Leaderboard render: <500ms
@@ -1075,6 +1076,7 @@ const styles = {
 - [ ] Redis lookups: <10ms
 
 ### Mobile Tests
+
 - [ ] iPhone 12: Responsive layout works
 - [ ] iPad: 2-column layout works
 - [ ] Android: Touch interactions work
@@ -1094,32 +1096,38 @@ All game logic documented via Kiro specs:
 
 ### Spec: Story Sentence Validation
 ```
+
 WHEN sentence is submitted
-  REQUIRE length >= 10 characters
-  REQUIRE length <= 150 characters
-  REQUIRE contains no profanity (auto-moderate)
-  THEN mark as pending_vote
+REQUIRE length >= 10 characters
+REQUIRE length <= 150 characters
+REQUIRE contains no profanity (auto-moderate)
+THEN mark as pending_vote
+
 ```
 
 ### Spec: Hourly Round Resolution
 ```
+
 WHEN hour timer reaches :00 UTC
-  FETCH all comments from past hour
-  FILTER by Round == current_round
-  SORT by upvotes DESC
-  SELECT top_voted
-  THEN append to story
-  THEN increment round_number
-  THEN broadcast via real-time
+FETCH all comments from past hour
+FILTER by Round == current_round
+SORT by upvotes DESC
+SELECT top_voted
+THEN append to story
+THEN increment round_number
+THEN broadcast via real-time
+
 ```
 
 ### Spec: Story Archival
 ```
+
 WHEN story.sentences.length >= 100
-  THEN mark story.status = 'completed'
-  THEN move to archive storage
-  THEN create new_story
-  THEN broadcast completion notification
+THEN mark story.status = 'completed'
+THEN move to archive storage
+THEN create new_story
+THEN broadcast completion notification
+
 ```
 
 ## Kiro Agent Hooks
@@ -1146,6 +1154,7 @@ WHEN story.sentences.length >= 100
 ## Pre-Submission Checklist (72 hours)
 
 ### Code Quality
+
 - [ ] No console.error logs
 - [ ] All TypeScript types defined
 - [ ] No any types (except necessary cases)
@@ -1153,12 +1162,14 @@ WHEN story.sentences.length >= 100
 - [ ] Tests pass: 100% coverage of critical paths
 
 ### Performance
+
 - [ ] Lighthouse score: 90+
 - [ ] Time to interactive: <3 seconds
 - [ ] Bundle size: <500KB
 - [ ] No memory leaks (DevTools check)
 
 ### Functionality
+
 - [ ] Full game cycle works end-to-end
 - [ ] Real-time sync never desynchronizes
 - [ ] Leaderboard accurate
@@ -1166,6 +1177,7 @@ WHEN story.sentences.length >= 100
 - [ ] Mobile responsive
 
 ### Documentation
+
 - [ ] README complete
 - [ ] API endpoints documented
 - [ ] Kiro workflow video recorded (3 min)
@@ -1173,6 +1185,7 @@ WHEN story.sentences.length >= 100
 - [ ] GitHub repo public, .kiro directory visible
 
 ### Submission
+
 - [ ] Demo post created on r/GameOnReddit
 - [ ] Game playable in demo post
 - [ ] GitHub link in submission
@@ -1214,6 +1227,7 @@ Tasks: 20 concrete implementations.
 "Here's where Kiro changed everything.
 
 Agent hooks automated the boring stuff:
+
 - Test generation: I changed validation logic, tests auto-updated
 - Leaderboard calculation: Scheduled job every 10 minutes
 - Type checking: Steering files enforced data consistency
@@ -1252,6 +1266,7 @@ Using Kiro's spec-driven development, agent hooks, and steering files, I built a
 ## Productivity Gains
 
 ### Before Kiro (Typical Approach)
+
 - Hour 0-8: Decide architecture, change mind 3x
 - Hour 8-24: Code core features, discover bugs
 - Hour 24-40: Refactor to fix sync issues
@@ -1260,6 +1275,7 @@ Using Kiro's spec-driven development, agent hooks, and steering files, I built a
 - Result: Incomplete, buggy, unpolished
 
 ### With Kiro (Spec-Driven)
+
 - Hour 0-2: Write comprehensive specs (requirements, design, tasks)
 - Hour 2-24: Vibe code + Kiro specs guide = coherent implementation
 - Hour 24-50: Polish while Kiro agent hooks automate tests, docs, leaderboards
@@ -1271,14 +1287,17 @@ Using Kiro's spec-driven development, agent hooks, and steering files, I built a
 ## Key Kiro Features That Enabled This
 
 ### 1. Specs-First Approach
+
 By forcing myself to specify game rules BEFORE coding, I prevented scope creep and architectural rework.
 
 Example: "Story progression" became clear specifications:
 ```
+
 WHEN hourly timer reaches :00
-  THEN fetch top-voted comment
-  THEN append to story
-  THEN increment round
+THEN fetch top-voted comment
+THEN append to story
+THEN increment round
+
 ```
 
 This clarity meant no mid-development rewrites.

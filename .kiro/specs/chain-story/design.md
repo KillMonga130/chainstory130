@@ -55,21 +55,22 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 
 ### Technology Stack Rationale
 
-| Layer | Technology | Justification |
-|-------|-----------|---------------|
-| **Frontend** | React + Devvit Web | Hot reload development, component reusability, fast iteration cycles |
-| **State Management** | React hooks + Real-time sync | Simple state management with automatic synchronization |
-| **Backend** | Node.js + Express + TypeScript | Native Devvit support, familiar web patterns, type safety |
-| **Scheduling** | Devvit Scheduler | Built-in cron job support, reliable execution at scale |
-| **Data Persistence** | Redis | Sub-millisecond lookups, perfect for hourly aggregations, built-in Devvit support |
-| **Real-time Updates** | Devvit Real-time Channels | Native platform integration, handles connection management |
-| **Authentication** | Reddit OAuth (via Devvit) | Automatic user authentication, no custom auth needed |
+| Layer                 | Technology                     | Justification                                                                     |
+| --------------------- | ------------------------------ | --------------------------------------------------------------------------------- |
+| **Frontend**          | React + Devvit Web             | Hot reload development, component reusability, fast iteration cycles              |
+| **State Management**  | React hooks + Real-time sync   | Simple state management with automatic synchronization                            |
+| **Backend**           | Node.js + Express + TypeScript | Native Devvit support, familiar web patterns, type safety                         |
+| **Scheduling**        | Devvit Scheduler               | Built-in cron job support, reliable execution at scale                            |
+| **Data Persistence**  | Redis                          | Sub-millisecond lookups, perfect for hourly aggregations, built-in Devvit support |
+| **Real-time Updates** | Devvit Real-time Channels      | Native platform integration, handles connection management                        |
+| **Authentication**    | Reddit OAuth (via Devvit)      | Automatic user authentication, no custom auth needed                              |
 
 ## Components and Interfaces
 
 ### Frontend Components
 
 #### App Component (`src/client/components/App.tsx`)
+
 - **Purpose**: Main application shell with tab navigation
 - **State Management**: Manages active tab (story/leaderboard/archive) and current story state
 - **Real-time Integration**: Subscribes to story-updates channel for live updates
@@ -80,6 +81,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
   - `switchTab()`: Manages tab navigation state
 
 #### StoryDisplay Component (`src/client/components/StoryDisplay.tsx`)
+
 - **Purpose**: Renders the current story with all sentences and metadata
 - **Props**: `{ story: StoryObject }`
 - **Features**:
@@ -90,6 +92,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 - **Styling**: Responsive layout with mobile-first design
 
 #### SubmissionForm Component (`src/client/components/SubmissionForm.tsx`)
+
 - **Purpose**: Handles sentence submission with validation
 - **Props**: `{ storyId: string, roundNumber: number }`
 - **Features**:
@@ -100,6 +103,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 - **Validation**: Client-side validation with server-side verification
 
 #### Leaderboard Component (`src/client/components/Leaderboard.tsx`)
+
 - **Purpose**: Displays top 10 completed stories ranked by votes
 - **State**: Manages leaderboard data and loading states
 - **Features**:
@@ -109,6 +113,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 - **Data Source**: `/api/leaderboard/top-10` endpoint
 
 #### Archive Component (`src/client/components/Archive.tsx`)
+
 - **Purpose**: Paginated browser for all completed stories
 - **State**: Manages pagination, sorting, and story data
 - **Features**:
@@ -123,12 +128,14 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 #### Story Management APIs
 
 **GET `/api/story/current`**
+
 - **Purpose**: Retrieve the active story with all sentences
 - **Response**: `{ story: StoryObject, roundTimeRemaining: number }`
 - **Caching**: Redis lookup with 1-second TTL
 - **Error Handling**: Returns empty story if none exists
 
 **POST `/api/submit-sentence`**
+
 - **Purpose**: Submit a new sentence for the current round
 - **Body**: `{ storyId: string, roundNumber: number, sentence: string }`
 - **Process**:
@@ -139,12 +146,14 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 - **Rate Limiting**: One submission per user per round
 
 **GET `/api/leaderboard/top-10`**
+
 - **Purpose**: Retrieve top 10 completed stories by votes
 - **Response**: `{ stories: LeaderboardEntry[] }`
 - **Caching**: Redis cache with 10-minute TTL
 - **Sorting**: Total votes DESC, then creation date ASC
 
 **GET `/api/archive/stories`**
+
 - **Purpose**: Paginated access to all completed stories
 - **Query Params**: `page: number, sort: 'date'|'votes', limit: number`
 - **Response**: `{ stories: StoryObject[], totalPages: number, currentPage: number }`
@@ -153,6 +162,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 #### Scheduled Job Handlers
 
 **Hourly Round Resolution Job**
+
 - **Schedule**: Every hour at :00 UTC (`0 * * * *`)
 - **Process**:
   1. Fetch all Reddit comments from past hour
@@ -168,6 +178,7 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 - **Error Handling**: Log failures and retry once
 
 **Daily Archival Job**
+
 - **Schedule**: Every day at 00:00 UTC (`0 0 * * *`)
 - **Process**:
   1. Check current story status
@@ -183,23 +194,24 @@ The game operates on a simple but powerful loop: users submit sentences as Reddi
 
 ```typescript
 interface Story {
-  id: string;                    // Unique identifier (story_timestamp)
-  created: number;               // Unix timestamp of creation
-  sentences: string[];           // Array of story sentences [0] to [99]
-  roundNumber: number;           // Current round (1-100)
-  totalVotes: number;            // Sum of all winning sentence upvotes
+  id: string; // Unique identifier (story_timestamp)
+  created: number; // Unix timestamp of creation
+  sentences: string[]; // Array of story sentences [0] to [99]
+  roundNumber: number; // Current round (1-100)
+  totalVotes: number; // Sum of all winning sentence upvotes
   status: 'active' | 'completed' | 'archived';
-  contributors: string[];        // Unique Reddit usernames who contributed
-  completedAt?: number;          // Unix timestamp when story reached 100 sentences
+  contributors: string[]; // Unique Reddit usernames who contributed
+  completedAt?: number; // Unix timestamp when story reached 100 sentences
 }
 
 interface Round {
-  storyId: string;               // Associated story ID
-  roundNumber: number;           // Round number (1-100)
-  startTime: number;             // Unix timestamp when round started
-  endTime: number;               // Unix timestamp when round ended
-  submissions: Submission[];     // All sentences submitted this round
-  winner?: {                     // Winning submission (highest votes)
+  storyId: string; // Associated story ID
+  roundNumber: number; // Round number (1-100)
+  startTime: number; // Unix timestamp when round started
+  endTime: number; // Unix timestamp when round ended
+  submissions: Submission[]; // All sentences submitted this round
+  winner?: {
+    // Winning submission (highest votes)
     commentId: string;
     sentence: string;
     upvotes: number;
@@ -208,35 +220,36 @@ interface Round {
 }
 
 interface Submission {
-  commentId: string;             // Reddit comment ID
-  sentence: string;              // Submitted sentence text
-  upvotes: number;               // Current upvote count
-  userId: string;                // Reddit username of submitter
-  timestamp: number;             // Unix timestamp of submission
+  commentId: string; // Reddit comment ID
+  sentence: string; // Submitted sentence text
+  upvotes: number; // Current upvote count
+  userId: string; // Reddit username of submitter
+  timestamp: number; // Unix timestamp of submission
 }
 
 interface LeaderboardEntry {
-  rank: number;                  // Position in leaderboard (1-10)
-  storyId: string;               // Story identifier
-  sentenceCount: number;         // Total sentences in story (should be 100)
-  totalVotes: number;            // Sum of all sentence upvotes
-  creator: string;               // Username who submitted first sentence
-  completedAt: number;           // When story was completed
-  preview: string;               // First 100 characters of story
+  rank: number; // Position in leaderboard (1-10)
+  storyId: string; // Story identifier
+  sentenceCount: number; // Total sentences in story (should be 100)
+  totalVotes: number; // Sum of all sentence upvotes
+  creator: string; // Username who submitted first sentence
+  completedAt: number; // When story was completed
+  preview: string; // First 100 characters of story
 }
 
 interface UserContribution {
-  userId: string;                // Reddit username
-  submissions: {                 // All sentences submitted by user
+  userId: string; // Reddit username
+  submissions: {
+    // All sentences submitted by user
     storyId: string;
     roundNumber: number;
     sentence: string;
     upvotes: number;
     wasWinner: boolean;
   }[];
-  totalSubmissions: number;      // Count of all submissions
-  totalWins: number;             // Count of winning submissions
-  totalUpvotes: number;          // Sum of upvotes across all submissions
+  totalSubmissions: number; // Count of all submissions
+  totalWins: number; // Count of winning submissions
+  totalUpvotes: number; // Sum of upvotes across all submissions
 }
 ```
 
@@ -278,20 +291,20 @@ interface UserContribution {
 ```typescript
 // Reddit Comment Format for Submissions
 interface RedditComment {
-  body: string;                  // "[Round N] User's sentence text"
-  id: string;                    // Reddit comment ID (t1_abc123)
-  score: number;                 // Current upvote score
-  created_utc: number;           // Unix timestamp
-  author: string;                // Reddit username
-  parent_id: string;             // Parent post ID
+  body: string; // "[Round N] User's sentence text"
+  id: string; // Reddit comment ID (t1_abc123)
+  score: number; // Current upvote score
+  created_utc: number; // Unix timestamp
+  author: string; // Reddit username
+  parent_id: string; // Parent post ID
 }
 
 // Reddit API Rate Limiting
 interface RateLimitStrategy {
-  maxRequestsPerMinute: 100;     // Reddit API limit
-  ourUsagePerHour: 3;            // Hourly job + occasional fetches
-  bufferMultiplier: 30;          // 3000% safety margin
-  retryStrategy: 'exponential';   // Backoff on rate limit hits
+  maxRequestsPerMinute: 100; // Reddit API limit
+  ourUsagePerHour: 3; // Hourly job + occasional fetches
+  bufferMultiplier: 30; // 3000% safety margin
+  retryStrategy: 'exponential'; // Backoff on rate limit hits
 }
 ```
 
@@ -300,18 +313,21 @@ interface RateLimitStrategy {
 ### Client-Side Error Handling
 
 **Network Failures**
+
 - **Strategy**: Retry with exponential backoff (1s, 2s, 4s, 8s)
 - **User Feedback**: Show "Connection lost, retrying..." message
 - **Fallback**: Allow offline viewing of cached story content
 - **Recovery**: Auto-reconnect when network restored
 
 **Form Validation Errors**
+
 - **Character Count**: Real-time validation with visual feedback
 - **Submission Failures**: Clear error messages with retry options
 - **Rate Limiting**: "Please wait before submitting again" with countdown
 - **Invalid Input**: Specific guidance on what needs to be fixed
 
 **Real-time Connection Issues**
+
 - **Detection**: Monitor WebSocket connection status
 - **Fallback**: Graceful degradation to manual refresh
 - **Recovery**: Automatic reconnection with exponential backoff
@@ -320,18 +336,21 @@ interface RateLimitStrategy {
 ### Server-Side Error Handling
 
 **Reddit API Failures**
+
 - **Rate Limiting**: Implement exponential backoff with jitter
 - **Authentication**: Handle token refresh automatically
 - **Service Outages**: Log errors and continue with cached data
 - **Malformed Responses**: Validate API responses before processing
 
 **Redis Connection Issues**
+
 - **Connection Loss**: Implement automatic reconnection
 - **Data Corruption**: Validate data structure before parsing
 - **Memory Limits**: Implement data cleanup and archival
 - **Performance**: Monitor query times and optimize slow operations
 
 **Scheduled Job Failures**
+
 - **Missed Executions**: Detect and handle missed hourly rounds
 - **Partial Failures**: Implement transaction-like operations
 - **Data Consistency**: Verify story state after each operation
@@ -344,11 +363,11 @@ interface ErrorLogging {
   levels: ['error', 'warn', 'info', 'debug'];
   destinations: ['console', 'redis', 'devvit-logs'];
   errorTypes: {
-    'reddit-api-failure': { severity: 'error', retry: true };
-    'redis-connection-lost': { severity: 'error', retry: true };
-    'invalid-sentence-submission': { severity: 'warn', retry: false };
-    'round-resolution-failure': { severity: 'error', retry: true };
-    'real-time-broadcast-failure': { severity: 'warn', retry: true };
+    'reddit-api-failure': { severity: 'error'; retry: true };
+    'redis-connection-lost': { severity: 'error'; retry: true };
+    'invalid-sentence-submission': { severity: 'warn'; retry: false };
+    'round-resolution-failure': { severity: 'error'; retry: true };
+    'real-time-broadcast-failure': { severity: 'warn'; retry: true };
   };
 }
 ```
@@ -358,6 +377,7 @@ interface ErrorLogging {
 ### Unit Testing Approach
 
 **Frontend Component Tests**
+
 - **Framework**: React Testing Library + Jest
 - **Coverage**: All components with props/state variations
 - **Focus Areas**:
@@ -367,6 +387,7 @@ interface ErrorLogging {
   - Mobile responsive behavior
 
 **Backend API Tests**
+
 - **Framework**: Jest + Supertest
 - **Coverage**: All API endpoints with success/failure cases
 - **Focus Areas**:
@@ -376,6 +397,7 @@ interface ErrorLogging {
   - Scheduled job logic
 
 **Data Model Tests**
+
 - **Framework**: Jest
 - **Coverage**: All data transformation and validation functions
 - **Focus Areas**:
@@ -387,6 +409,7 @@ interface ErrorLogging {
 ### Integration Testing Strategy
 
 **End-to-End Game Flow**
+
 - **Scenario**: Complete story creation cycle (1-100 sentences)
 - **Tools**: Playwright for browser automation
 - **Validation Points**:
@@ -397,11 +420,13 @@ interface ErrorLogging {
   - Leaderboard updates
 
 **Real-time Synchronization**
+
 - **Scenario**: Multiple users submitting simultaneously
 - **Validation**: All users see consistent story state
 - **Edge Cases**: Network disconnections, reconnections, message ordering
 
 **Reddit Integration**
+
 - **Scenario**: Comment posting and vote retrieval
 - **Mocking**: Reddit API responses for consistent testing
 - **Validation**: Proper comment formatting, vote counting accuracy
@@ -409,12 +434,14 @@ interface ErrorLogging {
 ### Performance Testing
 
 **Load Testing Scenarios**
+
 - **Concurrent Users**: 50+ simultaneous players
 - **Submission Bursts**: Multiple submissions at round boundaries
 - **Database Load**: Redis performance under high query volume
 - **Memory Usage**: Long-running process memory stability
 
 **Performance Benchmarks**
+
 - **Page Load**: < 2 seconds initial load
 - **API Response**: < 1 second for all endpoints
 - **Real-time Updates**: < 500ms message delivery
@@ -425,18 +452,18 @@ interface ErrorLogging {
 ```typescript
 interface TestDataStrategy {
   fixtures: {
-    sampleStories: Story[];           // Various story states for testing
-    mockComments: RedditComment[];    // Simulated Reddit API responses
-    userSubmissions: Submission[];    // Test submission data
+    sampleStories: Story[]; // Various story states for testing
+    mockComments: RedditComment[]; // Simulated Reddit API responses
+    userSubmissions: Submission[]; // Test submission data
   };
   cleanup: {
-    redisKeys: string[];              // Keys to clean between tests
-    testUsers: string[];              // Test user accounts to reset
+    redisKeys: string[]; // Keys to clean between tests
+    testUsers: string[]; // Test user accounts to reset
   };
   mocking: {
-    redditAPI: 'mock-server';         // Controlled Reddit API responses
-    realTime: 'in-memory';            // In-memory real-time channel simulation
-    scheduler: 'manual-trigger';      // Manual job execution for testing
+    redditAPI: 'mock-server'; // Controlled Reddit API responses
+    realTime: 'in-memory'; // In-memory real-time channel simulation
+    scheduler: 'manual-trigger'; // Manual job execution for testing
   };
 }
 ```

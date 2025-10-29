@@ -7,6 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwind()],
   build: {
     outDir: '../../dist/client',
+    emptyOutDir: true,
     sourcemap: true,
     // Performance optimizations
     target: 'es2020',

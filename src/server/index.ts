@@ -122,6 +122,14 @@ router.post<{}, CastVoteResponse, CastVoteRequest>(
       `Vote request: postId=${postId}, chapterId=${chapterId}, choiceId=${choiceId}, userId=${userId}`
     );
 
+    // Check if voting session exists and is active
+    const votingSession = await VotingManager.getVotingSession(postId!, chapterId);
+    console.log('Voting session check:', {
+      sessionExists: !!votingSession,
+      status: votingSession?.status,
+      chapterId,
+    });
+
     // Cast vote using VotingManager
     const result = await VotingManager.castVote(postId!, userId, chapterId, choiceId);
 
@@ -358,7 +366,7 @@ router.get(
       server: PerformanceMonitor.getMetrics(),
       redis: RedisOptimizer.getCacheStats(),
       realtime: RealtimeManager.getPerformanceStats(),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // Set cache headers for admin data
@@ -368,7 +376,7 @@ router.get(
 
     res.json({
       success: true,
-      data: metrics
+      data: metrics,
     });
   })
 );
@@ -411,7 +419,7 @@ router.post(
 
     res.json({
       success: true,
-      message: 'Performance metrics cleared successfully'
+      message: 'Performance metrics cleared successfully',
     });
   })
 );
@@ -430,30 +438,30 @@ router.get(
     } = {
       server: { healthy: true, timestamp: new Date().toISOString() },
       redis: { healthy: true },
-      realtime: { healthy: true }
+      realtime: { healthy: true },
     };
 
     try {
       // Check Redis health
       const { HealthChecker } = await import('./utils/error-handler');
       healthChecks.redis = await HealthChecker.checkRedisHealth();
-      
+
       // Check realtime health
       const { RealtimeManager } = await import('./core/realtime-manager');
       const realtimeCheck = await RealtimeManager.validateRealtimeSetup();
       healthChecks.realtime = {
         healthy: realtimeCheck.isConfigured,
-        ...(realtimeCheck.error && { error: realtimeCheck.error })
+        ...(realtimeCheck.error && { error: realtimeCheck.error }),
       };
     } catch (error) {
       healthChecks.server.healthy = false;
       ErrorLogger.logWarning('Health check failed', {
         postId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
 
-    const overallHealthy = Object.values(healthChecks).every(check => check.healthy);
+    const overallHealthy = Object.values(healthChecks).every((check) => check.healthy);
     const statusCode = overallHealthy ? 200 : 503;
 
     res.status(statusCode).json({
@@ -461,8 +469,8 @@ router.get(
       data: {
         status: overallHealthy ? 'healthy' : 'unhealthy',
         checks: healthChecks,
-        postId
-      }
+        postId,
+      },
     });
   })
 );
@@ -1357,10 +1365,10 @@ router.get(
       // If no story exists, initialize with first chapter
       if (!currentChapter || !storyContext) {
         console.log('No existing story found, initializing new story');
-        
+
         const progressionEngine = new StoryProgressionEngine();
         const initialChapter = progressionEngine.getInitialChapter();
-        
+
         // Initialize story state
         storyContext = await StoryStateManager.initializeStory(effectivePostId, initialChapter);
         currentChapter = initialChapter;
@@ -1370,9 +1378,9 @@ router.get(
         await VotingManager.createVotingSession(
           effectivePostId,
           initialChapter.id,
-          initialChapter.choices.map(choice => ({
+          initialChapter.choices.map((choice) => ({
             choiceId: choice.id,
-            text: choice.text
+            text: choice.text,
           })),
           60 // 60 minutes voting duration
         );
@@ -1381,22 +1389,44 @@ router.get(
       }
 
       // Check if voting is active for current chapter
-      const votingSession = await VotingManager.getVotingSession(effectivePostId, currentChapter.id);
+      let votingSession = await VotingManager.getVotingSession(effectivePostId, currentChapter.id);
+
+      // If no voting session exists for this chapter, create one
+      if (!votingSession) {
+        console.log('No voting session found, creating one for chapter:', currentChapter.id);
+        votingSession = await VotingManager.createVotingSession(
+          effectivePostId,
+          currentChapter.id,
+          currentChapter.choices.map((choice) => ({
+            choiceId: choice.id,
+            text: choice.text,
+          })),
+          60 // 60 minutes voting duration
+        );
+      }
+
       const votingActive = votingSession?.status === 'active';
+
+      console.log('Voting session status:', {
+        sessionExists: !!votingSession,
+        status: votingSession?.status,
+        votingActive,
+        chapterId: currentChapter.id,
+      });
 
       // Get current vote counts
       const voteCounts = await VotingManager.getVoteCounts(effectivePostId, currentChapter.id);
-      
+
       // Update chapter with current vote counts
       const updatedChapter = {
         ...currentChapter,
-        choices: currentChapter.choices.map(choice => {
-          const voteCount = voteCounts.find(vc => vc.choiceId === choice.id);
+        choices: currentChapter.choices.map((choice) => {
+          const voteCount = voteCounts.find((vc) => vc.choiceId === choice.id);
           return {
             ...choice,
-            voteCount: voteCount?.count || 0
+            voteCount: voteCount?.count || 0,
           };
-        })
+        }),
       };
 
       // Set cache headers
@@ -1412,7 +1442,7 @@ router.get(
           context: storyContext,
           progression,
           votingActive,
-          voteCounts
+          voteCounts,
         },
       });
     } catch (error) {
@@ -1445,14 +1475,14 @@ router.get(
       const [history, storyContext, allChapters] = await Promise.all([
         StoryStateManager.getStoryHistory(effectivePostId),
         StoryStateManager.getStoryContext(effectivePostId),
-        StoryStateManager.getAllChapters(effectivePostId)
+        StoryStateManager.getAllChapters(effectivePostId),
       ]);
 
       // Build path from context
       const path = {
         chapters: storyContext?.pathTaken || [],
         decisions: storyContext?.previousChoices || [],
-        ending: undefined // Could be populated if story has ended
+        ending: undefined, // Could be populated if story has ended
       };
 
       // Build decisions with vote stats
@@ -1467,8 +1497,8 @@ router.get(
               uniqueVoters: 0,
               votingDuration: 0,
               winningChoice: entry.winningChoice,
-              winningPercentage: 0
-            }
+              winningPercentage: 0,
+            },
           };
         })
       );
@@ -1480,7 +1510,7 @@ router.get(
           chapters: allChapters,
           decisions,
           totalChapters: allChapters.length,
-          storyAge: storyContext ? Date.now() - storyContext.storyStartTime.getTime() : 0
+          storyAge: storyContext ? Date.now() - storyContext.storyStartTime.getTime() : 0,
         },
       });
     } catch (error) {
@@ -1488,7 +1518,7 @@ router.get(
       res.status(500).json({
         success: false,
         error: 'Failed to get story history',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   })
@@ -1511,19 +1541,17 @@ router.post(
     // For development, allow requests without postId
     const effectivePostId = postId || 'dev-post-id';
 
-    console.log(`Story advance request: postId=${effectivePostId}, chapterId=${chapterId}, forceChoice=${forceChoice}`);
+    console.log(
+      `Story advance request: postId=${effectivePostId}, chapterId=${chapterId}, forceChoice=${forceChoice}`
+    );
 
     const { StoryProgressionEngine } = await import('./core/story-progression-engine.js');
 
     try {
       const progressionEngine = new StoryProgressionEngine();
-      
+
       // Advance the story
-      const result = await progressionEngine.advanceStory(
-        effectivePostId,
-        chapterId,
-        forceChoice
-      );
+      const result = await progressionEngine.advanceStory(effectivePostId, chapterId, forceChoice);
 
       if (result.success) {
         // Broadcast chapter transition to all connected clients
@@ -1546,8 +1574,8 @@ router.post(
             timestamp: new Date(),
             data: {
               ending: result.ending,
-              chapterId
-            }
+              chapterId,
+            },
           });
         }
 
@@ -1555,7 +1583,7 @@ router.post(
           postId: effectivePostId,
           chapterId,
           newChapter: result.newChapter?.id,
-          hasEnded: result.hasEnded
+          hasEnded: result.hasEnded,
         });
 
         res.json({
@@ -1563,19 +1591,19 @@ router.post(
           data: {
             newChapter: result.newChapter,
             hasEnded: result.hasEnded,
-            ending: result.ending
-          }
+            ending: result.ending,
+          },
         });
       } else {
         ErrorLogger.logWarning('Story advancement failed', {
           postId: effectivePostId,
           chapterId,
-          error: result.error
+          error: result.error,
         });
 
         res.status(400).json({
           success: false,
-          error: result.error || 'Failed to advance story'
+          error: result.error || 'Failed to advance story',
         });
       }
     } catch (error) {
@@ -1583,7 +1611,7 @@ router.post(
       res.status(500).json({
         success: false,
         error: 'Failed to advance story',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   })

@@ -14,7 +14,7 @@ interface ContentReportButtonProps {
 export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
   contentType,
   contentId,
-  className = ''
+  className = '',
 }) => {
   const [showReportForm, setShowReportForm] = useState(false);
   const [reason, setReason] = useState('');
@@ -30,7 +30,7 @@ export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
     'Harassment or hate speech',
     'Spam or advertising',
     'Off-topic content',
-    'Other'
+    'Other',
   ];
 
   const handleSubmitReport = async () => {
@@ -46,14 +46,14 @@ export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
       const response = await fetch('/api/moderation/report', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           contentType,
           contentId,
           reason,
-          description: description.trim() || undefined
-        })
+          description: description.trim() || undefined,
+        }),
       });
 
       const data = await response.json();
@@ -107,23 +107,17 @@ export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
         <div className="report-form">
           <div className="report-form-header">
             <h4>Report Content</h4>
-            <button onClick={handleCancel} className="report-close">×</button>
+            <button onClick={handleCancel} className="report-close">
+              ×
+            </button>
           </div>
 
-          {error && (
-            <div className="report-error">
-              {error}
-            </div>
-          )}
+          {error && <div className="report-error">{error}</div>}
 
           <div className="report-form-content">
             <div className="form-group">
               <label>Reason for reporting:</label>
-              <select
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                disabled={loading}
-              >
+              <select value={reason} onChange={(e) => setReason(e.target.value)} disabled={loading}>
                 <option value="">Select a reason...</option>
                 {reportReasons.map((reasonOption) => (
                   <option key={reasonOption} value={reasonOption}>
@@ -143,9 +137,7 @@ export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
                 disabled={loading}
                 maxLength={500}
               />
-              <div className="character-count">
-                {description.length}/500
-              </div>
+              <div className="character-count">{description.length}/500</div>
             </div>
 
             <div className="report-form-actions">
@@ -156,11 +148,7 @@ export const ContentReportButton: React.FC<ContentReportButtonProps> = ({
               >
                 {loading ? 'Submitting...' : 'Submit Report'}
               </button>
-              <button
-                onClick={handleCancel}
-                disabled={loading}
-                className="report-cancel"
-              >
+              <button onClick={handleCancel} disabled={loading} className="report-cancel">
                 Cancel
               </button>
             </div>

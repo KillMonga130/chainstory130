@@ -15,20 +15,29 @@ export class ClientError extends Error {
 }
 
 export class NetworkError extends ClientError {
-  constructor(message: string, public readonly status?: number) {
+  constructor(
+    message: string,
+    public readonly status?: number
+  ) {
     super(message, 'NETWORK_ERROR', { status });
   }
 }
 
 export class ValidationError extends ClientError {
-  constructor(message: string, public readonly field?: string) {
+  constructor(
+    message: string,
+    public readonly field?: string
+  ) {
     super(message, 'VALIDATION_ERROR', { field });
   }
 }
 
 export class TimeoutError extends ClientError {
   constructor(operation: string, timeoutMs: number) {
-    super(`Operation timed out after ${timeoutMs}ms: ${operation}`, 'TIMEOUT_ERROR', { operation, timeoutMs });
+    super(`Operation timed out after ${timeoutMs}ms: ${operation}`, 'TIMEOUT_ERROR', {
+      operation,
+      timeoutMs,
+    });
   }
 }
 
@@ -39,7 +48,7 @@ export class ClientPerformanceMonitor {
 
   static startTimer(operation: string): () => void {
     const startTime = performance.now();
-    
+
     return () => {
       const duration = performance.now() - startTime;
       this.recordMetric(operation, duration, false);
@@ -56,25 +65,25 @@ export class ClientPerformanceMonitor {
     }
 
     const existing = this.metrics.get(operation) || { count: 0, totalTime: 0, errors: 0 };
-    
+
     this.metrics.set(operation, {
       count: existing.count + 1,
       totalTime: existing.totalTime + duration,
-      errors: existing.errors + (isError ? 1 : 0)
+      errors: existing.errors + (isError ? 1 : 0),
     });
   }
 
   static getMetrics(): Record<string, { avgTime: number; count: number; errorRate: number }> {
     const result: Record<string, { avgTime: number; count: number; errorRate: number }> = {};
-    
+
     for (const [operation, metrics] of this.metrics.entries()) {
       result[operation] = {
-        avgTime: Math.round(metrics.totalTime / metrics.count * 100) / 100, // Round to 2 decimals
+        avgTime: Math.round((metrics.totalTime / metrics.count) * 100) / 100, // Round to 2 decimals
         count: metrics.count,
-        errorRate: Math.round((metrics.errors / metrics.count) * 100) / 100
+        errorRate: Math.round((metrics.errors / metrics.count) * 100) / 100,
       };
     }
-    
+
     return result;
   }
 
@@ -105,10 +114,11 @@ export class ApiClient {
       retryCondition = (error, attempt) => {
         // Retry on network errors, timeouts, and 5xx status codes
         return (
-          error instanceof NetworkError ||
-          error instanceof TimeoutError ||
-          (error instanceof NetworkError && error.status && error.status >= 500)
-        ) && attempt < retries;
+          (error instanceof NetworkError ||
+            error instanceof TimeoutError ||
+            (error instanceof NetworkError && error.status && error.status >= 500)) &&
+          attempt < retries
+        );
       },
       ...fetchOptions
     } = options;
@@ -128,12 +138,12 @@ export class ApiClient {
           console.warn(`API request failed, retrying (${attempt + 1}/${retries}):`, {
             url,
             error: lastError.message,
-            attempt: attempt + 1
+            attempt: attempt + 1,
           });
 
           // Exponential backoff with jitter
           const delay = retryDelay * Math.pow(2, attempt) + Math.random() * 1000;
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
 
@@ -167,14 +177,11 @@ export class ApiClient {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new NetworkError(
-          `HTTP ${response.status}: ${response.statusText}`,
-          response.status
-        );
+        throw new NetworkError(`HTTP ${response.status}: ${response.statusText}`, response.status);
       }
 
       const data = await response.json();
-      
+
       // Handle API error responses
       if (data.success === false) {
         throw new ClientError(data.error || 'API request failed', data.code || 'API_ERROR');
@@ -197,21 +204,28 @@ export class ApiClient {
   }
 
   // Convenience methods for common HTTP operations
-  static async get<T>(url: string, options?: RequestInit & {
-    timeout?: number;
-    retries?: number;
-    retryDelay?: number;
-    retryCondition?: (error: Error, attempt: number) => boolean;
-  }): Promise<T> {
+  static async get<T>(
+    url: string,
+    options?: RequestInit & {
+      timeout?: number;
+      retries?: number;
+      retryDelay?: number;
+      retryCondition?: (error: Error, attempt: number) => boolean;
+    }
+  ): Promise<T> {
     return this.request<T>(url, { ...options, method: 'GET' });
   }
 
-  static async post<T>(url: string, data?: any, options?: RequestInit & {
-    timeout?: number;
-    retries?: number;
-    retryDelay?: number;
-    retryCondition?: (error: Error, attempt: number) => boolean;
-  }): Promise<T> {
+  static async post<T>(
+    url: string,
+    data?: any,
+    options?: RequestInit & {
+      timeout?: number;
+      retries?: number;
+      retryDelay?: number;
+      retryCondition?: (error: Error, attempt: number) => boolean;
+    }
+  ): Promise<T> {
     return this.request<T>(url, {
       ...options,
       method: 'POST',
@@ -219,12 +233,16 @@ export class ApiClient {
     });
   }
 
-  static async put<T>(url: string, data?: any, options?: RequestInit & {
-    timeout?: number;
-    retries?: number;
-    retryDelay?: number;
-    retryCondition?: (error: Error, attempt: number) => boolean;
-  }): Promise<T> {
+  static async put<T>(
+    url: string,
+    data?: any,
+    options?: RequestInit & {
+      timeout?: number;
+      retries?: number;
+      retryDelay?: number;
+      retryCondition?: (error: Error, attempt: number) => boolean;
+    }
+  ): Promise<T> {
     return this.request<T>(url, {
       ...options,
       method: 'PUT',
@@ -232,12 +250,15 @@ export class ApiClient {
     });
   }
 
-  static async delete<T>(url: string, options?: RequestInit & {
-    timeout?: number;
-    retries?: number;
-    retryDelay?: number;
-    retryCondition?: (error: Error, attempt: number) => boolean;
-  }): Promise<T> {
+  static async delete<T>(
+    url: string,
+    options?: RequestInit & {
+      timeout?: number;
+      retries?: number;
+      retryDelay?: number;
+      retryCondition?: (error: Error, attempt: number) => boolean;
+    }
+  ): Promise<T> {
     return this.request<T>(url, { ...options, method: 'DELETE' });
   }
 }
@@ -266,7 +287,7 @@ export class ConnectionMonitor {
 
   static addListener(callback: (online: boolean) => void): () => void {
     this.listeners.push(callback);
-    
+
     // Return unsubscribe function
     return () => {
       const index = this.listeners.indexOf(callback);
@@ -281,7 +302,7 @@ export class ConnectionMonitor {
   }
 
   private static notifyListeners(online: boolean): void {
-    this.listeners.forEach(callback => {
+    this.listeners.forEach((callback) => {
       try {
         callback(online);
       } catch (error) {
@@ -343,7 +364,7 @@ export function debounce<T extends (...args: any[]) => any>(
   waitMs: number
 ): (...args: Parameters<T>) => void {
   let timeoutId: NodeJS.Timeout;
-  
+
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), waitMs);
@@ -356,12 +377,12 @@ export function throttle<T extends (...args: any[]) => any>(
   limitMs: number
 ): (...args: Parameters<T>) => void {
   let inThrottle: boolean;
-  
+
   return (...args: Parameters<T>) => {
     if (!inThrottle) {
       func(...args);
       inThrottle = true;
-      setTimeout(() => inThrottle = false, limitMs);
+      setTimeout(() => (inThrottle = false), limitMs);
     }
   };
 }

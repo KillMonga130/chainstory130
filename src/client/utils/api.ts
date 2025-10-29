@@ -16,9 +16,9 @@ export interface ApiError extends Error {
 
 // Create an API error with additional metadata
 export const createApiError = (
-  message: string, 
-  status?: number, 
-  code?: string, 
+  message: string,
+  status?: number,
+  code?: string,
   retryable = false
 ): ApiError => {
   const error = new Error(message) as ApiError;
@@ -33,29 +33,28 @@ export const isRetryableError = (error: Error): boolean => {
   if (error instanceof TypeError && error.message.includes('fetch')) {
     return true; // Network errors
   }
-  
+
   const apiError = error as ApiError;
   if (apiError.retryable !== undefined) {
     return apiError.retryable;
   }
-  
+
   // Retry on specific HTTP status codes
   if (apiError.status) {
     return [408, 429, 500, 502, 503, 504].includes(apiError.status);
   }
-  
+
   return false;
 };
 
 // Sleep utility for delays
-const sleep = (ms: number): Promise<void> => 
-  new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Calculate exponential backoff delay with jitter
 const calculateDelay = (
-  attempt: number, 
-  baseDelay: number, 
-  maxDelay: number, 
+  attempt: number,
+  baseDelay: number,
+  maxDelay: number,
   backoffMultiplier: number
 ): number => {
   const exponentialDelay = baseDelay * Math.pow(backoffMultiplier, attempt);
@@ -74,7 +73,7 @@ export const fetchWithRetry = async (
     baseDelay = 1000,
     maxDelay = 10000,
     backoffMultiplier = 2,
-    retryCondition = isRetryableError
+    retryCondition = isRetryableError,
   } = retryOptions;
 
   let lastError: Error;
@@ -83,7 +82,7 @@ export const fetchWithRetry = async (
     try {
       const response = await fetch(url, {
         ...options,
-        ...(options.signal && { signal: options.signal }) // Preserve abort signal if defined
+        ...(options.signal && { signal: options.signal }), // Preserve abort signal if defined
       });
 
       // Handle HTTP errors
@@ -118,7 +117,7 @@ export const fetchWithRetry = async (
 // Typed API response handler
 export const handleApiResponse = async <T>(response: Response): Promise<T> => {
   const contentType = response.headers.get('content-type');
-  
+
   if (!contentType?.includes('application/json')) {
     throw createApiError(
       'Invalid response format: expected JSON',
@@ -131,11 +130,7 @@ export const handleApiResponse = async <T>(response: Response): Promise<T> => {
     const data = await response.json();
     return data as T;
   } catch (error) {
-    throw createApiError(
-      'Failed to parse JSON response',
-      response.status,
-      'JSON_PARSE_ERROR'
-    );
+    throw createApiError('Failed to parse JSON response', response.status, 'JSON_PARSE_ERROR');
   }
 };
 
@@ -157,13 +152,13 @@ export const checkNetworkStatus = (): boolean => {
 // Create abort controller with timeout
 export const createAbortController = (timeoutMs?: number): AbortController => {
   const controller = new AbortController();
-  
+
   if (timeoutMs) {
     setTimeout(() => {
       controller.abort();
     }, timeoutMs);
   }
-  
+
   return controller;
 };
 
@@ -173,11 +168,7 @@ export const validateApiResponse = <T>(
   validator: (data: unknown) => data is T
 ): T => {
   if (!validator(data)) {
-    throw createApiError(
-      'Invalid API response structure',
-      undefined,
-      'INVALID_RESPONSE_STRUCTURE'
-    );
+    throw createApiError('Invalid API response structure', undefined, 'INVALID_RESPONSE_STRUCTURE');
   }
   return data;
 };

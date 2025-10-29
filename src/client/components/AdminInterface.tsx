@@ -4,15 +4,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  GetStoryStatsResponse, 
+import {
+  GetStoryStatsResponse,
   GetModerationStatsResponse,
   ContentModerationRequest,
   ContentModerationResponse,
   AdvanceStoryRequest,
   AdvanceStoryResponse,
   ResetStoryRequest,
-  ResetStoryResponse
+  ResetStoryResponse,
 } from '../../shared/types/api';
 
 interface ContentReport {
@@ -51,7 +51,9 @@ interface AdminInterfaceProps {
 }
 
 export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'moderation' | 'reports' | 'filters'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'moderation' | 'reports' | 'filters'>(
+    'overview'
+  );
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null);
   const [moderationStats, setModerationStats] = useState<ModerationStats | null>(null);
   const [reports, setReports] = useState<ContentReport[]>([]);
@@ -75,13 +77,9 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
   const loadAdminData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      await Promise.all([
-        loadStoryStats(),
-        loadModerationStats(),
-        loadReports()
-      ]);
+      await Promise.all([loadStoryStats(), loadModerationStats(), loadReports()]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load admin data');
     } finally {
@@ -93,7 +91,7 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
     try {
       const response = await fetch(`/api/admin/stats?adminKey=${encodeURIComponent(adminKey)}`);
       const data: GetStoryStatsResponse = await response.json();
-      
+
       if (data.success && data.data) {
         setAdminStats(data.data);
       } else {
@@ -107,9 +105,11 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
 
   const loadModerationStats = async () => {
     try {
-      const response = await fetch(`/api/admin/moderation?adminKey=${encodeURIComponent(adminKey)}`);
+      const response = await fetch(
+        `/api/admin/moderation?adminKey=${encodeURIComponent(adminKey)}`
+      );
       const data: GetModerationStatsResponse = await response.json();
-      
+
       if (data.success && data.data) {
         // Map the API response to match our interface
         const mappedStats: ModerationStats = {
@@ -124,8 +124,8 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
             reportedAt: new Date(item.reportedAt),
             status: item.status,
             moderatedBy: item.moderatedBy,
-            ...(item.moderatedAt && { moderatedAt: new Date(item.moderatedAt) })
-          }))
+            ...(item.moderatedAt && { moderatedAt: new Date(item.moderatedAt) }),
+          })),
         };
         setModerationStats(mappedStats);
       } else {
@@ -141,7 +141,7 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
     try {
       const response = await fetch(`/api/admin/reports?adminKey=${encodeURIComponent(adminKey)}`);
       const data = await response.json();
-      
+
       if (data.success && data.data) {
         setReports(data.data.reports || []);
       } else {
@@ -155,25 +155,25 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
 
   const handleAdvanceStory = async () => {
     if (!adminKey) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const request: AdvanceStoryRequest = {
         adminKey,
         ...(forceChoice && { forceChoice }),
-        ...(advanceReason && { reason: advanceReason })
+        ...(advanceReason && { reason: advanceReason }),
       };
-      
+
       const response = await fetch('/api/admin/advance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       });
-      
+
       const data: AdvanceStoryResponse = await response.json();
-      
+
       if (data.success) {
         setSuccessMessage('Story advanced successfully');
         setAdvanceReason('');
@@ -190,25 +190,26 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
   };
 
   const handleResetStory = async () => {
-    if (!adminKey || !confirm('Are you sure you want to reset the story? This cannot be undone.')) return;
-    
+    if (!adminKey || !confirm('Are you sure you want to reset the story? This cannot be undone.'))
+      return;
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const request: ResetStoryRequest = {
         adminKey,
-        ...(resetReason && { reason: resetReason })
+        ...(resetReason && { reason: resetReason }),
       };
-      
+
       const response = await fetch('/api/admin/reset', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       });
-      
+
       const data: ResetStoryResponse = await response.json();
-      
+
       if (data.success) {
         setSuccessMessage('Story reset successfully');
         setResetReason('');
@@ -223,12 +224,16 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
     }
   };
 
-  const handleResolveReport = async (reportId: string, status: 'resolved' | 'dismissed', notes?: string) => {
+  const handleResolveReport = async (
+    reportId: string,
+    status: 'resolved' | 'dismissed',
+    notes?: string
+  ) => {
     if (!adminKey) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch(`/api/admin/reports/${reportId}/status`, {
         method: 'POST',
@@ -236,12 +241,12 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
         body: JSON.stringify({
           adminKey,
           status,
-          moderatorNotes: notes
-        })
+          moderatorNotes: notes,
+        }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setSuccessMessage(`Report ${status} successfully`);
         await loadReports();
@@ -255,29 +260,33 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
     }
   };
 
-  const handleFlagContent = async (targetType: 'chapter' | 'choice' | 'story', targetId: string, reason: string) => {
+  const handleFlagContent = async (
+    targetType: 'chapter' | 'choice' | 'story',
+    targetId: string,
+    reason: string
+  ) => {
     if (!adminKey) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const request: ContentModerationRequest = {
         adminKey,
         action: 'flag',
         targetType,
         targetId,
-        reason
+        reason,
       };
-      
+
       const response = await fetch('/api/admin/moderate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       });
-      
+
       const data: ContentModerationResponse = await response.json();
-      
+
       if (data.success) {
         setSuccessMessage('Content flagged successfully');
         await loadModerationStats();
@@ -293,10 +302,10 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
 
   const handleAddFilter = async () => {
     if (!adminKey || !newFilterPattern) return;
-    
+
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await fetch('/api/admin/filters', {
         method: 'POST',
@@ -306,12 +315,12 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
           pattern: newFilterPattern,
           severity: newFilterSeverity,
           action: newFilterAction,
-          ...(newFilterReplacement && { replacement: newFilterReplacement })
-        })
+          ...(newFilterReplacement && { replacement: newFilterReplacement }),
+        }),
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         setSuccessMessage('Content filter added successfully');
         setNewFilterPattern('');
@@ -336,43 +345,49 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
     <div className="admin-interface">
       <div className="admin-header">
         <h2>Administrative Interface</h2>
-        <button onClick={onClose} className="close-button">×</button>
+        <button onClick={onClose} className="close-button">
+          ×
+        </button>
       </div>
 
       {error && (
         <div className="admin-message error">
           {error}
-          <button onClick={clearMessages} className="dismiss-button">×</button>
+          <button onClick={clearMessages} className="dismiss-button">
+            ×
+          </button>
         </div>
       )}
 
       {successMessage && (
         <div className="admin-message success">
           {successMessage}
-          <button onClick={clearMessages} className="dismiss-button">×</button>
+          <button onClick={clearMessages} className="dismiss-button">
+            ×
+          </button>
         </div>
       )}
 
       <div className="admin-tabs">
-        <button 
+        <button
           className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
           onClick={() => setActiveTab('overview')}
         >
           Overview
         </button>
-        <button 
+        <button
           className={`tab ${activeTab === 'moderation' ? 'active' : ''}`}
           onClick={() => setActiveTab('moderation')}
         >
           Moderation
         </button>
-        <button 
+        <button
           className={`tab ${activeTab === 'reports' ? 'active' : ''}`}
           onClick={() => setActiveTab('reports')}
         >
           Reports ({moderationStats?.pendingReports || 0})
         </button>
-        <button 
+        <button
           className={`tab ${activeTab === 'filters' ? 'active' : ''}`}
           onClick={() => setActiveTab('filters')}
         >
@@ -428,7 +443,7 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                       placeholder="Reason for manual advancement"
                     />
                   </div>
-                  <button 
+                  <button
                     onClick={handleAdvanceStory}
                     disabled={loading}
                     className="admin-button primary"
@@ -447,7 +462,7 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                       placeholder="Reason for story reset"
                     />
                   </div>
-                  <button 
+                  <button
                     onClick={handleResetStory}
                     disabled={loading}
                     className="admin-button danger"
@@ -483,15 +498,17 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
             <div className="content-flagging">
               <h3>Flag Content</h3>
               <div className="flag-form">
-                <select onChange={(e) => {
-                  const [type, id] = e.target.value.split(':');
-                  if (type && id) {
-                    const reason = prompt('Enter reason for flagging:');
-                    if (reason) {
-                      handleFlagContent(type as any, id, reason);
+                <select
+                  onChange={(e) => {
+                    const [type, id] = e.target.value.split(':');
+                    if (type && id) {
+                      const reason = prompt('Enter reason for flagging:');
+                      if (reason) {
+                        handleFlagContent(type as any, id, reason);
+                      }
                     }
-                  }
-                }}>
+                  }}
+                >
                   <option value="">Select content to flag...</option>
                   <option value="chapter:current">Current Chapter</option>
                   <option value="story:main">Entire Story</option>
@@ -523,13 +540,13 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                     </div>
                     {report.status === 'pending' && (
                       <div className="report-actions">
-                        <button 
+                        <button
                           onClick={() => handleResolveReport(report.id, 'resolved')}
                           className="admin-button small primary"
                         >
                           Resolve
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleResolveReport(report.id, 'dismissed')}
                           className="admin-button small secondary"
                         >
@@ -561,8 +578,8 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                 </div>
                 <div className="form-group">
                   <label>Severity:</label>
-                  <select 
-                    value={newFilterSeverity} 
+                  <select
+                    value={newFilterSeverity}
                     onChange={(e) => setNewFilterSeverity(e.target.value as any)}
                   >
                     <option value="low">Low</option>
@@ -572,8 +589,8 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                 </div>
                 <div className="form-group">
                   <label>Action:</label>
-                  <select 
-                    value={newFilterAction} 
+                  <select
+                    value={newFilterAction}
                     onChange={(e) => setNewFilterAction(e.target.value as any)}
                   >
                     <option value="flag">Flag for Review</option>
@@ -592,7 +609,7 @@ export const AdminInterface: React.FC<AdminInterfaceProps> = ({ adminKey, onClos
                     />
                   </div>
                 )}
-                <button 
+                <button
                   onClick={handleAddFilter}
                   disabled={loading || !newFilterPattern}
                   className="admin-button primary"

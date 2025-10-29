@@ -26,16 +26,16 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
 
   useEffect(() => {
     const startTime = Date.now();
-    
+
     const interval = setInterval(() => {
       const elapsed = Date.now() - startTime;
       setElapsedTime(elapsed);
-      
+
       // Show timeout warning at 80% of timeout duration
       if (timeout && elapsed > timeout * 0.8 && !showTimeoutWarning) {
         setShowTimeoutWarning(true);
       }
-      
+
       // Trigger timeout callback
       if (timeout && elapsed > timeout) {
         onTimeout?.();
@@ -101,7 +101,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
     return `${minutes}m ${remainingSeconds}s`;
   };
 
-  const shouldShowSpinner = type === 'loading' || type === 'processing' || type === 'saving' || type === 'connecting';
+  const shouldShowSpinner =
+    type === 'loading' || type === 'processing' || type === 'saving' || type === 'connecting';
 
   return (
     <div className={`loading-spinner-container ${getTypeClass()} ${className}`}>
@@ -112,14 +113,14 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
           <div className="spinner-ring" />
         </div>
       ) : (
-        <div className={`status-icon ${getSizeClass()}`}>
-          {getTypeIcon()}
-        </div>
+        <div className={`status-icon ${getSizeClass()}`}>{getTypeIcon()}</div>
       )}
 
       <div className="loading-content">
         {message && (
-          <p className={`loading-message horror-text ${type === 'error' ? 'text-horror-red' : type === 'success' ? 'text-horror-green' : ''}`}>
+          <p
+            className={`loading-message horror-text ${type === 'error' ? 'text-horror-red' : type === 'success' ? 'text-horror-green' : ''}`}
+          >
             {message}
           </p>
         )}
@@ -127,8 +128,8 @@ export const LoadingSpinner: React.FC<LoadingSpinnerProps> = ({
         {progress !== undefined && (
           <div className="progress-container">
             <div className="progress-bar">
-              <div 
-                className="progress-fill" 
+              <div
+                className="progress-fill"
                 style={{ width: `${Math.max(0, Math.min(100, progress))}%` }}
               />
             </div>

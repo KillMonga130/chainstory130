@@ -54,64 +54,64 @@ export class ContentModerator {
       pattern: /\b(fuck|shit|damn|hell|ass|bitch|bastard)\b/gi,
       severity: 'low',
       action: 'replace',
-      replacement: '[censored]'
+      replacement: '[censored]',
     },
     {
       type: 'profanity',
       pattern: /\b(motherfucker|cocksucker|asshole|dickhead)\b/gi,
       severity: 'medium',
-      action: 'flag'
+      action: 'flag',
     },
-    
+
     // Excessive violence (beyond horror theme)
     {
       type: 'violence',
       pattern: /\b(torture|mutilate|dismember|eviscerate|disembowel)\b/gi,
       severity: 'high',
-      action: 'flag'
+      action: 'flag',
     },
     {
       type: 'violence',
       pattern: /\b(graphic violence|extreme gore|brutal murder)\b/gi,
       severity: 'high',
-      action: 'block'
+      action: 'block',
     },
-    
+
     // Sexual content (not appropriate for horror story)
     {
       type: 'sexual',
       pattern: /\b(porn|sex|nude|naked|erotic|sexual)\b/gi,
       severity: 'medium',
-      action: 'flag'
+      action: 'flag',
     },
     {
       type: 'sexual',
       pattern: /\b(explicit sexual|graphic sexual|sexual violence)\b/gi,
       severity: 'high',
-      action: 'block'
+      action: 'block',
     },
-    
+
     // Harassment and hate speech
     {
       type: 'harassment',
       pattern: /\b(kill yourself|kys|die|hate you)\b/gi,
       severity: 'high',
-      action: 'block'
+      action: 'block',
     },
-    
+
     // Spam patterns
     {
       type: 'spam',
       pattern: /\b(buy now|click here|visit our|www\.|http|\.com)\b/gi,
       severity: 'medium',
-      action: 'flag'
+      action: 'flag',
     },
     {
       type: 'spam',
       pattern: /(.)\1{10,}/g, // Repeated characters (10+ times)
       severity: 'low',
-      action: 'flag'
-    }
+      action: 'flag',
+    },
   ];
 
   /**
@@ -120,7 +120,7 @@ export class ContentModerator {
   static async moderateChapter(chapter: StoryChapter): Promise<ModerationResult> {
     const contentToCheck = `${chapter.title} ${chapter.content}`;
     const result = await this.moderateText(contentToCheck);
-    
+
     // Check choices as well
     for (const choice of chapter.choices) {
       const choiceResult = await this.moderateChoice(choice);
@@ -130,7 +130,7 @@ export class ContentModerator {
         result.requiresReview = result.requiresReview || choiceResult.requiresReview;
       }
     }
-    
+
     return result;
   }
 
@@ -155,9 +155,8 @@ export class ContentModerator {
     const allFilters = [...this.DEFAULT_FILTERS, ...customFilters];
 
     for (const filter of allFilters) {
-      const pattern = typeof filter.pattern === 'string' 
-        ? new RegExp(filter.pattern, 'gi') 
-        : filter.pattern;
+      const pattern =
+        typeof filter.pattern === 'string' ? new RegExp(filter.pattern, 'gi') : filter.pattern;
 
       const matches = text.match(pattern);
       if (matches) {
@@ -167,7 +166,7 @@ export class ContentModerator {
             severity: filter.severity,
             match: match,
             action: filter.action,
-            position: text.indexOf(match)
+            position: text.indexOf(match),
           });
 
           // Apply filter action
@@ -189,14 +188,14 @@ export class ContentModerator {
     }
 
     // Determine if content should be blocked entirely
-    const hasHighSeverityViolations = violations.some(v => v.severity === 'high');
-    const hasBlockingViolations = violations.some(v => v.action === 'block');
+    const hasHighSeverityViolations = violations.some((v) => v.severity === 'high');
+    const hasBlockingViolations = violations.some((v) => v.action === 'block');
 
     return {
       isClean: violations.length === 0,
       violations,
       filteredContent: violations.length > 0 ? filteredContent : undefined,
-      requiresReview: requiresReview || hasHighSeverityViolations || hasBlockingViolations
+      requiresReview: requiresReview || hasHighSeverityViolations || hasBlockingViolations,
     };
   }
 
@@ -213,7 +212,7 @@ export class ContentModerator {
   ): Promise<{ success: boolean; reportId?: string; error?: string }> {
     try {
       const reportId = `report_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-      
+
       const report: ContentReport = {
         id: reportId,
         contentType,
@@ -222,14 +221,17 @@ export class ContentModerator {
         reason,
         description,
         reportedAt: new Date(),
-        status: 'pending'
+        status: 'pending',
       };
 
       const reportKey = `${this.REPORT_PREFIX}:${postId}:${reportId}`;
-      await redis.set(reportKey, JSON.stringify({
-        ...report,
-        reportedAt: report.reportedAt.toISOString()
-      }));
+      await redis.set(
+        reportKey,
+        JSON.stringify({
+          ...report,
+          reportedAt: report.reportedAt.toISOString(),
+        })
+      );
       await redis.expire(reportKey, 86400 * 30); // 30 days TTL
 
       // Add to reports index for easy retrieval
@@ -241,12 +243,11 @@ export class ContentModerator {
       await this.updateReportStats(postId, 'new_report', contentType);
 
       return { success: true, reportId };
-
     } catch (error) {
       console.error('Error reporting content:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -265,14 +266,14 @@ export class ContentModerator {
       for (const reportId of reportIds) {
         const reportKey = `${this.REPORT_PREFIX}:${postId}:${reportId}`;
         const reportData = await redis.get(reportKey);
-        
+
         if (reportData) {
           try {
             const report = JSON.parse(reportData);
             reports.push({
               ...report,
               reportedAt: new Date(report.reportedAt),
-              resolvedAt: report.resolvedAt ? new Date(report.resolvedAt) : undefined
+              resolvedAt: report.resolvedAt ? new Date(report.resolvedAt) : undefined,
             });
           } catch (error) {
             console.error('Error parsing report data:', error);
@@ -282,7 +283,6 @@ export class ContentModerator {
 
       // Sort by report date (newest first)
       return reports.sort((a, b) => b.reportedAt.getTime() - a.reportedAt.getTime());
-
     } catch (error) {
       console.error('Error getting content reports:', error);
       return [];
@@ -302,7 +302,7 @@ export class ContentModerator {
     try {
       const reportKey = `${this.REPORT_PREFIX}:${postId}:${reportId}`;
       const reportData = await redis.get(reportKey);
-      
+
       if (!reportData) {
         return { success: false, error: 'Report not found' };
       }
@@ -314,25 +314,27 @@ export class ContentModerator {
         status,
         moderatorNotes,
         resolvedAt: status === 'resolved' || status === 'dismissed' ? new Date() : undefined,
-        resolvedBy: moderatorId
+        resolvedBy: moderatorId,
       };
 
-      await redis.set(reportKey, JSON.stringify({
-        ...updatedReport,
-        reportedAt: updatedReport.reportedAt.toISOString(),
-        resolvedAt: updatedReport.resolvedAt?.toISOString()
-      }));
+      await redis.set(
+        reportKey,
+        JSON.stringify({
+          ...updatedReport,
+          reportedAt: updatedReport.reportedAt.toISOString(),
+          resolvedAt: updatedReport.resolvedAt?.toISOString(),
+        })
+      );
 
       // Update report statistics
       await this.updateReportStats(postId, 'status_change', report.contentType, status);
 
       return { success: true };
-
     } catch (error) {
       console.error('Error updating report status:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -351,14 +353,17 @@ export class ContentModerator {
         pattern: filter.pattern,
         severity: filter.severity,
         action: filter.action,
-        ...(filter.replacement && { replacement: filter.replacement })
+        ...(filter.replacement && { replacement: filter.replacement }),
       };
 
       const filterKey = `${this.FILTER_PREFIX}:${postId}:${filterId}`;
-      await redis.set(filterKey, JSON.stringify({
-        ...customFilter,
-        pattern: customFilter.pattern.toString() // Convert RegExp to string for storage
-      }));
+      await redis.set(
+        filterKey,
+        JSON.stringify({
+          ...customFilter,
+          pattern: customFilter.pattern.toString(), // Convert RegExp to string for storage
+        })
+      );
       await redis.expire(filterKey, 86400 * 30); // 30 days TTL
 
       // Add to filters index
@@ -367,12 +372,11 @@ export class ContentModerator {
       await redis.expire(filtersIndexKey, 86400 * 30);
 
       return { success: true, filterId };
-
     } catch (error) {
       console.error('Error adding custom filter:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -393,7 +397,7 @@ export class ContentModerator {
       for (const filterId of filterIds) {
         const filterKey = `${this.FILTER_PREFIX}:${postId}:${filterId}`;
         const filterData = await redis.get(filterKey);
-        
+
         if (filterData) {
           try {
             const filter = JSON.parse(filterData);
@@ -412,7 +416,6 @@ export class ContentModerator {
       }
 
       return filters;
-
     } catch (error) {
       console.error('Error getting custom filters:', error);
       return [];
@@ -434,12 +437,11 @@ export class ContentModerator {
       await redis.hDel(filtersIndexKey, [filterId]);
 
       return { success: true };
-
     } catch (error) {
       console.error('Error removing custom filter:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
   }
@@ -457,14 +459,14 @@ export class ContentModerator {
   }> {
     try {
       const reports = await this.getContentReports(postId);
-      
+
       const stats = {
         totalReports: reports.length,
         pendingReports: 0,
         resolvedReports: 0,
         dismissedReports: 0,
         reportsByType: {} as Record<string, number>,
-        reportsByStatus: {} as Record<string, number>
+        reportsByStatus: {} as Record<string, number>,
       };
 
       for (const report of reports) {
@@ -483,14 +485,14 @@ export class ContentModerator {
         }
 
         // Count by type
-        stats.reportsByType[report.contentType] = (stats.reportsByType[report.contentType] || 0) + 1;
-        
+        stats.reportsByType[report.contentType] =
+          (stats.reportsByType[report.contentType] || 0) + 1;
+
         // Count by status
         stats.reportsByStatus[report.status] = (stats.reportsByStatus[report.status] || 0) + 1;
       }
 
       return stats;
-
     } catch (error) {
       console.error('Error getting moderation stats:', error);
       return {
@@ -499,7 +501,7 @@ export class ContentModerator {
         resolvedReports: 0,
         dismissedReports: 0,
         reportsByType: {},
-        reportsByStatus: {}
+        reportsByStatus: {},
       };
     }
   }
@@ -516,19 +518,18 @@ export class ContentModerator {
     try {
       const statsKey = `${this.MODERATION_PREFIX}:${postId}:stats`;
       const timestamp = new Date().toISOString();
-      
+
       const statEntry = {
         action,
         contentType,
         status,
-        timestamp
+        timestamp,
       };
 
       // Use hash to store stats entries
       const entryKey = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
       await redis.hSet(statsKey, { [entryKey]: JSON.stringify(statEntry) });
       await redis.expire(statsKey, 86400 * 30); // 30 days TTL
-
     } catch (error) {
       console.error('Error updating report stats:', error);
     }
@@ -547,44 +548,49 @@ export class ContentModerator {
     requiresApproval: boolean;
   }> {
     const moderationResult = await this.moderateText(content);
-    
-    const violations = moderationResult.violations.map(v => 
-      `${v.type} (${v.severity}): "${v.match}"`
+
+    const violations = moderationResult.violations.map(
+      (v) => `${v.type} (${v.severity}): "${v.match}"`
     );
 
-    const hasBlockingViolations = moderationResult.violations.some(v => v.action === 'block');
+    const hasBlockingViolations = moderationResult.violations.some((v) => v.action === 'block');
     const requiresApproval = moderationResult.requiresReview;
 
     return {
       isValid: !hasBlockingViolations,
-      ...(moderationResult.filteredContent && { filteredContent: moderationResult.filteredContent }),
+      ...(moderationResult.filteredContent && {
+        filteredContent: moderationResult.filteredContent,
+      }),
       violations,
-      requiresApproval
+      requiresApproval,
     };
   }
 
   /**
    * Gets content that requires moderation review
    */
-  static async getContentAwaitingReview(postId: string): Promise<Array<{
-    id: string;
-    type: 'chapter' | 'choice' | 'story';
-    content: string;
-    violations: string[];
-    reportedAt: Date;
-  }>> {
+  static async getContentAwaitingReview(postId: string): Promise<
+    Array<{
+      id: string;
+      type: 'chapter' | 'choice' | 'story';
+      content: string;
+      violations: string[];
+      reportedAt: Date;
+    }>
+  > {
     try {
       const reports = await this.getContentReports(postId);
-      const pendingReports = reports.filter(r => r.status === 'pending' || r.status === 'reviewing');
+      const pendingReports = reports.filter(
+        (r) => r.status === 'pending' || r.status === 'reviewing'
+      );
 
-      return pendingReports.map(report => ({
+      return pendingReports.map((report) => ({
         id: report.contentId,
         type: report.contentType,
         content: report.description || 'No content description available',
         violations: [report.reason],
-        reportedAt: report.reportedAt
+        reportedAt: report.reportedAt,
       }));
-
     } catch (error) {
       console.error('Error getting content awaiting review:', error);
       return [];

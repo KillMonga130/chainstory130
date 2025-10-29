@@ -11,7 +11,8 @@ class MemoryCache {
   private readonly maxSize: number;
   private readonly defaultTtl: number;
 
-  constructor(maxSize: number = 1000, defaultTtlMs: number = 60000) { // 1 minute default TTL
+  constructor(maxSize: number = 1000, defaultTtlMs: number = 60000) {
+    // 1 minute default TTL
     this.maxSize = maxSize;
     this.defaultTtl = defaultTtlMs;
   }
@@ -27,20 +28,20 @@ class MemoryCache {
 
     this.cache.set(key, {
       value,
-      expiry: Date.now() + ttlMs
+      expiry: Date.now() + ttlMs,
     });
   }
 
   get(key: string): any | null {
     const item = this.cache.get(key);
-    
+
     if (!item) return null;
-    
+
     if (Date.now() > item.expiry) {
       this.cache.delete(key);
       return null;
     }
-    
+
     return item.value;
   }
 
@@ -75,12 +76,15 @@ setInterval(() => globalCache.cleanup(), 5 * 60 * 1000);
 
 // Batch operation manager
 class BatchOperationManager {
-  private batches = new Map<string, {
-    operations: Array<() => Promise<any>>;
-    resolve: (results: any[]) => void;
-    reject: (error: Error) => void;
-    timeout: NodeJS.Timeout;
-  }>();
+  private batches = new Map<
+    string,
+    {
+      operations: Array<() => Promise<any>>;
+      resolve: (results: any[]) => void;
+      reject: (error: Error) => void;
+      timeout: NodeJS.Timeout;
+    }
+  >();
 
   private readonly batchDelay: number;
   private readonly maxBatchSize: number;
@@ -90,16 +94,13 @@ class BatchOperationManager {
     this.maxBatchSize = maxBatchSize;
   }
 
-  addToBatch<T>(
-    batchKey: string,
-    operation: () => Promise<T>
-  ): Promise<T> {
+  addToBatch<T>(batchKey: string, operation: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
       const existing = this.batches.get(batchKey);
-      
+
       if (existing) {
         existing.operations.push(operation);
-        
+
         // If batch is full, execute immediately
         if (existing.operations.length >= this.maxBatchSize) {
           clearTimeout(existing.timeout);
@@ -115,7 +116,7 @@ class BatchOperationManager {
           operations: [operation],
           resolve: (results) => resolve(results[0] as T),
           reject,
-          timeout
+          timeout,
         });
       }
     });
@@ -129,9 +130,7 @@ class BatchOperationManager {
     clearTimeout(batch.timeout);
 
     try {
-      const results = await Promise.all(
-        batch.operations.map(op => op())
-      );
+      const results = await Promise.all(batch.operations.map((op) => op()));
       batch.resolve(results);
     } catch (error) {
       batch.reject(error as Error);
@@ -153,7 +152,7 @@ export class RedisOptimizer {
     useMemoryCache = true
   ): Promise<string | null> {
     const cacheKey = `${this.CACHE_PREFIX}${key}`;
-    
+
     // Check memory cache first
     if (useMemoryCache) {
       const cached = globalCache.get(cacheKey);
@@ -164,15 +163,15 @@ export class RedisOptimizer {
     }
 
     const stopTimer = PerformanceMonitor.startTimer('redis_get_cached');
-    
+
     try {
       const value = await RedisErrorHandler.safeGet(key);
-      
+
       // Cache the result
       if (value !== null && useMemoryCache) {
         globalCache.set(cacheKey, value, ttlMs);
       }
-      
+
       stopTimer();
       PerformanceMonitor.recordMetric('redis_cache_miss', 0, false);
       return value;
@@ -189,7 +188,7 @@ export class RedisOptimizer {
     useMemoryCache = true
   ): Promise<T | null> {
     const cacheKey = `${this.CACHE_PREFIX}json:${key}`;
-    
+
     // Check memory cache first
     if (useMemoryCache) {
       const cached = globalCache.get(cacheKey);
@@ -200,15 +199,15 @@ export class RedisOptimizer {
     }
 
     const stopTimer = PerformanceMonitor.startTimer('redis_get_json_cached');
-    
+
     try {
       const value = await RedisErrorHandler.safeGetJSON<T>(key);
-      
+
       // Cache the result
       if (value !== null && useMemoryCache) {
         globalCache.set(cacheKey, value, ttlMs);
       }
-      
+
       stopTimer();
       PerformanceMonitor.recordMetric('redis_json_cache_miss', 0, false);
       return value;
@@ -225,14 +224,14 @@ export class RedisOptimizer {
     options?: { expiration?: Date }
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('redis_set_with_cache_invalidation');
-    
+
     try {
       await RedisErrorHandler.safeSet(key, value, options);
-      
+
       // Invalidate memory cache
       const cacheKey = `${this.CACHE_PREFIX}${key}`;
       globalCache.delete(cacheKey);
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -247,14 +246,14 @@ export class RedisOptimizer {
     options?: { expiration?: Date }
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('redis_set_json_with_cache_invalidation');
-    
+
     try {
       await RedisErrorHandler.safeSetJSON(key, value, options);
-      
+
       // Invalidate memory cache
       const cacheKey = `${this.CACHE_PREFIX}json:${key}`;
       globalCache.delete(cacheKey);
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -265,17 +264,15 @@ export class RedisOptimizer {
   // Batched get operations
   static async getBatched(keys: string[]): Promise<(string | null)[]> {
     if (keys.length === 0) return [];
-    
+
     const batchKey = `${this.BATCH_PREFIX}get:${keys.join(',')}`;
-    
+
     return batchManager.addToBatch(batchKey, async () => {
       const stopTimer = PerformanceMonitor.startTimer('redis_get_batched');
-      
+
       try {
-        const results = await Promise.all(
-          keys.map(key => RedisErrorHandler.safeGet(key))
-        );
-        
+        const results = await Promise.all(keys.map((key) => RedisErrorHandler.safeGet(key)));
+
         stopTimer();
         return results;
       } catch (error) {
@@ -292,7 +289,7 @@ export class RedisOptimizer {
     choiceIds: string[]
   ): Promise<Array<{ choiceId: string; count: number }>> {
     const cacheKey = `vote_counts:${postId}:${chapterId}`;
-    
+
     // Try cache first
     const cached = await this.getCached(cacheKey, 5000); // 5 second cache
     if (cached) {
@@ -304,27 +301,25 @@ export class RedisOptimizer {
     }
 
     const stopTimer = PerformanceMonitor.startTimer('redis_get_vote_counts_optimized');
-    
+
     try {
       // Batch get all vote counts
-      const voteCountKeys = choiceIds.map(choiceId => 
-        `haunted_thread:vote_count:${postId}:${chapterId}:${choiceId}`
+      const voteCountKeys = choiceIds.map(
+        (choiceId) => `haunted_thread:vote_count:${postId}:${chapterId}:${choiceId}`
       );
-      
+
       const counts = await this.getBatched(voteCountKeys);
-      
+
       const results = choiceIds.map((choiceId, index) => ({
         choiceId,
-        count: parseInt(counts[index] || '0')
+        count: parseInt(counts[index] || '0'),
       }));
 
       // Cache the results
-      await this.setWithCacheInvalidation(
-        cacheKey,
-        JSON.stringify(results),
-        { expiration: new Date(Date.now() + 5000) }
-      );
-      
+      await this.setWithCacheInvalidation(cacheKey, JSON.stringify(results), {
+        expiration: new Date(Date.now() + 5000),
+      });
+
       stopTimer();
       return results;
     } catch (error) {
@@ -340,7 +335,7 @@ export class RedisOptimizer {
     chapterId: string
   ): Promise<{ hasVoted: boolean; choiceId?: string }> {
     const cacheKey = `user_vote:${postId}:${chapterId}:${userId}`;
-    
+
     // Try cache first (short TTL for user-specific data)
     const cached = await this.getCached(cacheKey, 10000); // 10 second cache
     if (cached) {
@@ -352,23 +347,21 @@ export class RedisOptimizer {
     }
 
     const stopTimer = PerformanceMonitor.startTimer('redis_get_user_vote_status_optimized');
-    
+
     try {
       const userVoteKey = `haunted_thread:user_vote:${postId}:${chapterId}:${userId}`;
       const choiceId = await RedisErrorHandler.safeGet(userVoteKey);
-      
+
       const result = {
         hasVoted: !!choiceId,
-        ...(choiceId && { choiceId })
+        ...(choiceId && { choiceId }),
       };
 
       // Cache the result
-      await this.setWithCacheInvalidation(
-        cacheKey,
-        JSON.stringify(result),
-        { expiration: new Date(Date.now() + 10000) }
-      );
-      
+      await this.setWithCacheInvalidation(cacheKey, JSON.stringify(result), {
+        expiration: new Date(Date.now() + 10000),
+      });
+
       stopTimer();
       return result;
     } catch (error) {
@@ -381,15 +374,15 @@ export class RedisOptimizer {
   static async invalidateCachePattern(pattern: string): Promise<void> {
     // Since we can't use Redis KEYS in Devvit, we'll clear memory cache
     // and log the pattern for manual cleanup if needed
-    
+
     const keys = Array.from(globalCache['cache'].keys());
-    const matchingKeys = keys.filter(key => key.includes(pattern));
-    
-    matchingKeys.forEach(key => globalCache.delete(key));
-    
+    const matchingKeys = keys.filter((key) => key.includes(pattern));
+
+    matchingKeys.forEach((key) => globalCache.delete(key));
+
     ErrorLogger.logInfo('Cache invalidation completed', {
       pattern,
-      invalidatedKeys: matchingKeys.length
+      invalidatedKeys: matchingKeys.length,
     });
   }
 
@@ -401,9 +394,9 @@ export class RedisOptimizer {
     return {
       memoryCache: {
         size: globalCache.size(),
-        maxSize: globalCache['maxSize']
+        maxSize: globalCache['maxSize'],
       },
-      performance: PerformanceMonitor.getMetrics()
+      performance: PerformanceMonitor.getMetrics(),
     };
   }
 
@@ -416,12 +409,12 @@ export class RedisOptimizer {
   // Preload frequently accessed data
   static async preloadData(keys: string[]): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('redis_preload_data');
-    
+
     try {
       await Promise.all(
-        keys.map(key => this.getCached(key, 300000)) // 5 minute cache
+        keys.map((key) => this.getCached(key, 300000)) // 5 minute cache
       );
-      
+
       stopTimer();
       ErrorLogger.logInfo('Data preloaded successfully', { keyCount: keys.length });
     } catch (error) {

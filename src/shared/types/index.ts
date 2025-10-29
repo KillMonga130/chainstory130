@@ -5,7 +5,7 @@
 // Story types
 export * from './story.js';
 
-// Voting types  
+// Voting types
 export * from './voting.js';
 
 // API types

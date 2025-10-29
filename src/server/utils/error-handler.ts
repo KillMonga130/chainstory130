@@ -60,7 +60,9 @@ export class RedisError extends ApiError {
 
 export class RedditApiError extends ApiError {
   constructor(message: string, operation?: string, statusCode?: number) {
-    super(`Reddit API error: ${message}`, statusCode || 502, 'REDDIT_API_ERROR', true, { operation });
+    super(`Reddit API error: ${message}`, statusCode || 502, 'REDDIT_API_ERROR', true, {
+      operation,
+    });
   }
 }
 
@@ -68,7 +70,7 @@ export class RedditApiError extends ApiError {
 export class ErrorLogger {
   private static formatError(error: Error, req?: Request): Record<string, any> {
     const { postId, subredditName, userId } = context;
-    
+
     return {
       timestamp: new Date().toISOString(),
       error: {
@@ -101,12 +103,12 @@ export class ErrorLogger {
 
   static logError(error: Error, req?: Request): void {
     const errorData = this.formatError(error, req);
-    
+
     // Log to console with structured format
     console.error('=== ERROR LOG ===');
     console.error(`Time: ${errorData.timestamp}`);
     console.error(`Error: ${error.name} - ${error.message}`);
-    
+
     if (error instanceof ApiError) {
       console.error(`Code: ${error.code} (${error.statusCode})`);
       console.error(`Operational: ${error.isOperational}`);
@@ -114,25 +116,25 @@ export class ErrorLogger {
         console.error(`Context: ${JSON.stringify(error.context, null, 2)}`);
       }
     }
-    
+
     if (req) {
       console.error(`Request: ${req.method} ${req.url}`);
     }
-    
+
     if (errorData.devvitContext.postId) {
       console.error(`Post ID: ${errorData.devvitContext.postId}`);
     }
-    
+
     if (errorData.devvitContext.subredditName) {
       console.error(`Subreddit: ${errorData.devvitContext.subredditName}`);
     }
-    
+
     // Log full stack trace for non-operational errors
     if (!(error instanceof ApiError) || !error.isOperational) {
       console.error('Stack trace:');
       console.error(error.stack);
     }
-    
+
     console.error('=== END ERROR LOG ===');
   }
 
@@ -188,9 +190,7 @@ export const errorHandler = (
 
   // Handle unknown errors
   const statusCode = 500;
-  const message = process.env.NODE_ENV === 'production' 
-    ? 'Internal server error' 
-    : error.message;
+  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message;
 
   res.status(statusCode).json({
     status: 'error',
@@ -211,13 +211,11 @@ export const asyncHandler = (
   };
 };
 
-// Request validation middleware
-export const validateRequest = (
-  validator: (req: Request) => void
-) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+// Request validation middleware with better type safety
+export const validateRequest = (validator: (req: Request) => void | Promise<void>) => {
+  return async (req: Request, _res: Response, next: NextFunction) => {
     try {
-      validator(req);
+      await validator(req);
       next();
     } catch (error) {
       if (error instanceof Error) {
@@ -233,42 +231,38 @@ export const validateRequest = (
 export class RateLimiter {
   private static requests = new Map<string, { count: number; resetTime: number }>();
 
-  static checkLimit(
-    identifier: string,
-    maxRequests: number,
-    windowMs: number
-  ): boolean {
+  static checkLimit(identifier: string, maxRequests: number, windowMs: number): boolean {
     const now = Date.now();
     const windowStart = now - windowMs;
-    
+
     const existing = this.requests.get(identifier);
-    
+
     if (!existing || existing.resetTime < windowStart) {
       // New window or expired window
       this.requests.set(identifier, { count: 1, resetTime: now + windowMs });
       return true;
     }
-    
+
     if (existing.count >= maxRequests) {
       return false; // Rate limit exceeded
     }
-    
+
     // Increment count
     existing.count++;
     return true;
   }
 
   static middleware(maxRequests: number, windowMs: number) {
-    return async (req: Request, res: Response, next: NextFunction) => {
+    return async (req: Request, _res: Response, next: NextFunction) => {
       try {
         // Use user ID or IP as identifier
-        const userId = await context.userId;
+        const userId = context.userId;
         const identifier = userId || req.ip || 'anonymous';
-        
+
         if (!this.checkLimit(identifier, maxRequests, windowMs)) {
           throw new RateLimitError(`Too many requests. Limit: ${maxRequests} per ${windowMs}ms`);
         }
-        
+
         next();
       } catch (error) {
         next(error);
@@ -284,9 +278,9 @@ export class HealthChecker {
       // Use the RedisErrorHandler to check connection
       return { healthy: true }; // Placeholder - actual implementation would use Redis operations
     } catch (error) {
-      return { 
-        healthy: false, 
-        error: error instanceof Error ? error.message : 'Unknown Redis error' 
+      return {
+        healthy: false,
+        error: error instanceof Error ? error.message : 'Unknown Redis error',
       };
     }
   }
@@ -296,9 +290,9 @@ export class HealthChecker {
       // Use the RedditErrorHandler to check API health
       return await RedditErrorHandler.checkApiHealth();
     } catch (error) {
-      return { 
-        healthy: false, 
-        error: error instanceof Error ? error.message : 'Unknown Reddit API error' 
+      return {
+        healthy: false,
+        error: error instanceof Error ? error.message : 'Unknown Reddit API error',
       };
     }
   }
@@ -313,7 +307,10 @@ export class NetworkError extends ApiError {
 
 export class TimeoutError extends ApiError {
   constructor(operation: string, timeoutMs: number) {
-    super(`Operation timed out after ${timeoutMs}ms: ${operation}`, 408, 'TIMEOUT_ERROR', true, { operation, timeoutMs });
+    super(`Operation timed out after ${timeoutMs}ms: ${operation}`, 408, 'TIMEOUT_ERROR', true, {
+      operation,
+      timeoutMs,
+    });
   }
 }
 
@@ -323,7 +320,7 @@ export class PerformanceMonitor {
 
   static startTimer(operation: string): () => void {
     const startTime = Date.now();
-    
+
     return () => {
       const duration = Date.now() - startTime;
       this.recordMetric(operation, duration, false);
@@ -332,25 +329,25 @@ export class PerformanceMonitor {
 
   static recordMetric(operation: string, duration: number, isError: boolean): void {
     const existing = this.metrics.get(operation) || { count: 0, totalTime: 0, errors: 0 };
-    
+
     this.metrics.set(operation, {
       count: existing.count + 1,
       totalTime: existing.totalTime + duration,
-      errors: existing.errors + (isError ? 1 : 0)
+      errors: existing.errors + (isError ? 1 : 0),
     });
   }
 
   static getMetrics(): Record<string, { avgTime: number; count: number; errorRate: number }> {
     const result: Record<string, { avgTime: number; count: number; errorRate: number }> = {};
-    
+
     for (const [operation, metrics] of this.metrics.entries()) {
       result[operation] = {
         avgTime: metrics.totalTime / metrics.count,
         count: metrics.count,
-        errorRate: metrics.errors / metrics.count
+        errorRate: metrics.errors / metrics.count,
       };
     }
-    
+
     return result;
   }
 
@@ -387,12 +384,12 @@ export class CircuitBreaker {
 
     try {
       const result = await operation();
-      
+
       if (this.state === 'half-open') {
         this.reset();
         ErrorLogger.logInfo(`Circuit breaker closed for ${this.operationName}`);
       }
-      
+
       return result;
     } catch (error) {
       this.recordFailure();
@@ -408,7 +405,7 @@ export class CircuitBreaker {
       this.state = 'open';
       ErrorLogger.logWarning(`Circuit breaker opened for ${this.operationName}`, {
         failures: this.failures,
-        threshold: this.failureThreshold
+        threshold: this.failureThreshold,
       });
     }
   }
@@ -421,7 +418,7 @@ export class CircuitBreaker {
   getState(): { state: string; failures: number } {
     return {
       state: this.state,
-      failures: this.failures
+      failures: this.failures,
     };
   }
 }
@@ -436,7 +433,7 @@ export class ErrorRecovery {
   ): Promise<T> {
     let lastError: Error;
     const stopTimer = PerformanceMonitor.startTimer('retry_operation');
-    
+
     try {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
@@ -445,26 +442,26 @@ export class ErrorRecovery {
           return result;
         } catch (error) {
           lastError = error as Error;
-          
+
           if (attempt === maxRetries) {
             break; // Don't wait after the last attempt
           }
-          
+
           // Wait before retry with exponential backoff and jitter
           const baseDelay = delayMs * Math.pow(backoffMultiplier, attempt);
           const jitter = Math.random() * 0.1 * baseDelay; // 10% jitter
           const delay = baseDelay + jitter;
-          
-          await new Promise(resolve => setTimeout(resolve, delay));
-          
+
+          await new Promise((resolve) => setTimeout(resolve, delay));
+
           ErrorLogger.logWarning(`Retry attempt ${attempt + 1}/${maxRetries} failed`, {
             error: lastError.message,
             nextRetryIn: delay * backoffMultiplier,
-            attempt: attempt + 1
+            attempt: attempt + 1,
           });
         }
       }
-      
+
       stopTimer();
       PerformanceMonitor.recordMetric('retry_operation', 0, true);
       throw lastError!;
@@ -480,21 +477,19 @@ export class ErrorRecovery {
     fallbackCondition?: (error: Error) => boolean
   ): Promise<T> {
     const stopTimer = PerformanceMonitor.startTimer('fallback_operation');
-    
+
     try {
       const result = await primaryOperation();
       stopTimer();
       return result;
     } catch (error) {
-      const shouldUseFallback = fallbackCondition 
-        ? fallbackCondition(error as Error)
-        : true;
-        
+      const shouldUseFallback = fallbackCondition ? fallbackCondition(error as Error) : true;
+
       if (shouldUseFallback) {
         ErrorLogger.logWarning('Using fallback operation', {
           primaryError: (error as Error).message,
         });
-        
+
         try {
           const result = await fallbackOperation();
           stopTimer();
@@ -505,7 +500,7 @@ export class ErrorRecovery {
           throw fallbackError;
         }
       }
-      
+
       stopTimer();
       PerformanceMonitor.recordMetric('fallback_operation', 0, true);
       throw error;
@@ -518,9 +513,9 @@ export class ErrorRecovery {
     operationName: string = 'unknown'
   ): Promise<T> {
     const stopTimer = PerformanceMonitor.startTimer(`timeout_${operationName}`);
-    
+
     return Promise.race([
-      operation().then(result => {
+      operation().then((result) => {
         stopTimer();
         return result;
       }),
@@ -530,7 +525,7 @@ export class ErrorRecovery {
           PerformanceMonitor.recordMetric(`timeout_${operationName}`, timeoutMs, true);
           reject(new TimeoutError(operationName, timeoutMs));
         }, timeoutMs);
-      })
+      }),
     ]);
   }
 }

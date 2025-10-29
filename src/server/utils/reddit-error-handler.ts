@@ -23,15 +23,24 @@ export class RedditErrorHandler {
     } catch (error) {
       const originalError = error as Error;
       let statusCode = 502; // Bad Gateway as default for external API errors
-      
+
       // Parse Reddit API specific errors
       if (originalError.message.includes('429') || originalError.message.includes('rate limit')) {
         statusCode = 429;
-      } else if (originalError.message.includes('401') || originalError.message.includes('unauthorized')) {
+      } else if (
+        originalError.message.includes('401') ||
+        originalError.message.includes('unauthorized')
+      ) {
         statusCode = 401;
-      } else if (originalError.message.includes('403') || originalError.message.includes('forbidden')) {
+      } else if (
+        originalError.message.includes('403') ||
+        originalError.message.includes('forbidden')
+      ) {
         statusCode = 403;
-      } else if (originalError.message.includes('404') || originalError.message.includes('not found')) {
+      } else if (
+        originalError.message.includes('404') ||
+        originalError.message.includes('not found')
+      ) {
         statusCode = 404;
       }
 
@@ -63,38 +72,35 @@ export class RedditErrorHandler {
     fallbackText?: string
   ): Promise<{ id: string; success: boolean; fallbackUsed: boolean }> {
     let fallbackUsed = false;
-    
-    const result = await this.withErrorHandling(
-      async () => {
-        try {
-          const comment = await reddit.submitComment({
-            id: postId,
-            text,
+
+    const result = await this.withErrorHandling(async () => {
+      try {
+        const comment = await reddit.submitComment({
+          id: postId as any,
+          text,
+        });
+        return { id: comment.id, success: true, fallbackUsed: false };
+      } catch (error) {
+        // If primary comment fails and we have fallback text, try that
+        if (fallbackText && fallbackText !== text) {
+          ErrorLogger.logWarning('Primary comment failed, trying fallback text', {
+            originalText: text,
+            fallbackText,
+            error: (error as Error).message,
           });
-          return { id: comment.id, success: true, fallbackUsed: false };
-        } catch (error) {
-          // If primary comment fails and we have fallback text, try that
-          if (fallbackText && fallbackText !== text) {
-            ErrorLogger.logWarning('Primary comment failed, trying fallback text', {
-              originalText: text,
-              fallbackText,
-              error: (error as Error).message,
-            });
-            
-            const fallbackComment = await reddit.submitComment({
-              id: postId,
-              text: fallbackText,
-            });
-            
-            fallbackUsed = true;
-            return { id: fallbackComment.id, success: true, fallbackUsed: true };
-          }
-          
-          throw error;
+
+          const fallbackComment = await reddit.submitComment({
+            id: postId as any,
+            text: fallbackText,
+          });
+
+          fallbackUsed = true;
+          return { id: fallbackComment.id, success: true, fallbackUsed: true };
         }
-      },
-      'SUBMIT_COMMENT'
-    );
+
+        throw error;
+      }
+    }, 'SUBMIT_COMMENT');
 
     return { ...result, fallbackUsed };
   }
@@ -107,23 +113,26 @@ export class RedditErrorHandler {
       sort?: 'new' | 'top' | 'hot';
       timeFilter?: 'hour' | 'day' | 'week' | 'month' | 'year' | 'all';
     } = {}
-  ): Promise<Array<{
-    id: string;
-    body: string;
-    score: number;
-    authorName: string;
-    createdAt: string;
-  }>> {
+  ): Promise<
+    Array<{
+      id: string;
+      body: string;
+      score: number;
+      authorName: string;
+      createdAt: string;
+    }>
+  > {
     return this.withErrorHandling(
       async () => {
-        const comments = await reddit.getComments({
-          postId,
-          limit: options.limit || 100,
-          sort: options.sort || 'new',
-          timeFilter: options.timeFilter,
-        }).all();
+        const comments = await reddit
+          .getComments({
+            postId: postId as any,
+            limit: options.limit || 100,
+            sort: (options.sort || 'new') as any,
+          })
+          .all();
 
-        return comments.map(comment => ({
+        return comments.map((comment) => ({
           id: comment.id,
           body: comment.body || '',
           score: comment.score,
@@ -155,31 +164,36 @@ export class RedditErrorHandler {
     text?: string,
     url?: string
   ): Promise<{ id: string; url: string }> {
-    return this.withErrorHandling(
-      async () => {
-        // Validate inputs
-        if (!title || title.trim().length === 0) {
-          throw new Error('Post title cannot be empty');
-        }
-        
-        if (title.length > 300) {
-          throw new Error('Post title too long (max 300 characters)');
-        }
+    return this.withErrorHandling(async () => {
+      // Validate inputs
+      if (!title || title.trim().length === 0) {
+        throw new Error('Post title cannot be empty');
+      }
 
-        const post = await reddit.submitPost({
-          subredditName,
-          title: title.trim(),
-          text: text?.trim(),
-          url,
-        });
+      if (title.length > 300) {
+        throw new Error('Post title too long (max 300 characters)');
+      }
 
-        return {
-          id: post.id,
-          url: post.url,
-        };
-      },
-      'CREATE_POST'
-    );
+      const postData: any = {
+        subredditName,
+        title: title.trim(),
+      };
+
+      if (text?.trim()) {
+        postData.text = text.trim();
+      }
+
+      if (url) {
+        postData.url = url;
+      }
+
+      const post = await reddit.submitPost(postData);
+
+      return {
+        id: post.id,
+        url: post.url,
+      };
+    }, 'CREATE_POST');
   }
 
   // Safe subreddit information fetching
@@ -200,7 +214,7 @@ export class RedditErrorHandler {
         return {
           name: subredditName,
           members: 0, // Would need actual API call
-          description: undefined,
+          description: '',
         };
       },
       'GET_SUBREDDIT_INFO',
@@ -215,15 +229,21 @@ export class RedditErrorHandler {
         waitTime: this.RATE_LIMIT_DELAY,
         error: error.message,
       });
-      
+
       // Wait for rate limit to reset
-      await new Promise(resolve => setTimeout(resolve, this.RATE_LIMIT_DELAY));
+      await new Promise((resolve) => setTimeout(resolve, this.RATE_LIMIT_DELAY));
     }
   }
 
   // Batch comment processing with error handling
   static async safeBatchProcessComments<T>(
-    comments: Array<{ id: string; body: string; score: number; authorName: string; createdAt: string }>,
+    comments: Array<{
+      id: string;
+      body: string;
+      score: number;
+      authorName: string;
+      createdAt: string;
+    }>,
     processor: (comment: any) => Promise<T>,
     operationName: string
   ): Promise<T[]> {
@@ -237,7 +257,7 @@ export class RedditErrorHandler {
       } catch (error) {
         const errorMessage = (error as Error).message;
         errors.push({ commentId: comment.id, error: errorMessage });
-        
+
         ErrorLogger.logWarning(`Failed to process comment in ${operationName}`, {
           commentId: comment.id,
           error: errorMessage,
@@ -275,25 +295,25 @@ export class RedditErrorHandler {
 
       return { valid: true, match };
     } catch (error) {
-      return { 
-        valid: false, 
-        error: `Validation error: ${(error as Error).message}` 
+      return {
+        valid: false,
+        error: `Validation error: ${(error as Error).message}`,
       };
     }
   }
 
   // Health check for Reddit API
-  static async checkApiHealth(): Promise<{ 
-    healthy: boolean; 
-    error?: string; 
-    responseTime?: number 
+  static async checkApiHealth(): Promise<{
+    healthy: boolean;
+    error?: string;
+    responseTime?: number;
   }> {
     const startTime = Date.now();
-    
+
     try {
       await this.safeGetCurrentUsername();
       const responseTime = Date.now() - startTime;
-      
+
       return { healthy: true, responseTime };
     } catch (error) {
       return {
@@ -307,7 +327,7 @@ export class RedditErrorHandler {
   // Context validation
   static validateContext(): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
-    const { postId, subredditName, userId } = context;
+    const { postId, subredditName } = context;
 
     if (!postId) {
       errors.push('Missing postId in context');
@@ -318,7 +338,7 @@ export class RedditErrorHandler {
     }
 
     // userId might be optional depending on the operation
-    
+
     return {
       valid: errors.length === 0,
       errors,

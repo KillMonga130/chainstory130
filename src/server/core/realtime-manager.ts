@@ -11,12 +11,15 @@ import { ErrorLogger, PerformanceMonitor } from '../utils/error-handler';
 
 // Message throttling and batching utilities
 class MessageThrottler {
-  private pendingMessages = new Map<string, {
-    message: any;
-    timestamp: number;
-    timeout: NodeJS.Timeout;
-  }>();
-  
+  private pendingMessages = new Map<
+    string,
+    {
+      message: any;
+      timestamp: number;
+      timeout: NodeJS.Timeout;
+    }
+  >();
+
   private readonly throttleMs: number;
   private readonly maxPendingMessages: number;
 
@@ -52,7 +55,7 @@ class MessageThrottler {
       } catch (error) {
         ErrorLogger.logWarning('Throttled message send failed', {
           key,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }, this.throttleMs);
@@ -60,7 +63,7 @@ class MessageThrottler {
     this.pendingMessages.set(key, {
       message,
       timestamp: Date.now(),
-      timeout
+      timeout,
     });
   }
 
@@ -87,10 +90,13 @@ class MessageThrottler {
 
 // Message batching for multiple updates
 class MessageBatcher {
-  private batches = new Map<string, {
-    messages: any[];
-    timeout: NodeJS.Timeout;
-  }>();
+  private batches = new Map<
+    string,
+    {
+      messages: any[];
+      timeout: NodeJS.Timeout;
+    }
+  >();
 
   private readonly batchDelayMs: number;
   private readonly maxBatchSize: number;
@@ -106,10 +112,10 @@ class MessageBatcher {
     sendBatchFn: (messages: any[]) => Promise<void>
   ): void {
     const existing = this.batches.get(batchKey);
-    
+
     if (existing) {
       existing.messages.push(message);
-      
+
       // If batch is full, send immediately
       if (existing.messages.length >= this.maxBatchSize) {
         clearTimeout(existing.timeout);
@@ -123,7 +129,7 @@ class MessageBatcher {
 
       this.batches.set(batchKey, {
         messages: [message],
-        timeout
+        timeout,
       });
     }
   }
@@ -144,7 +150,7 @@ class MessageBatcher {
       ErrorLogger.logWarning('Batch message send failed', {
         batchKey,
         messageCount: batch.messages.length,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -173,33 +179,33 @@ export class RealtimeManager {
     totalVotes: number
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_vote_update');
-    
+
     try {
       const channel = this.getChannelName(postId);
       const throttleKey = `vote_update:${postId}:${chapterId}`;
-      
+
       const message = {
         type: 'vote_update',
         timestamp: new Date().toISOString(),
         data: {
           chapterId,
           voteCounts,
-          totalVotes
-        }
+          totalVotes,
+        },
       };
 
       // Throttle vote updates to prevent spam
       this.voteThrottler.throttle(throttleKey, message, async (msg) => {
         await realtime.send(channel, JSON.parse(JSON.stringify(msg)));
-        
+
         ErrorLogger.logInfo('Vote update broadcasted', {
           channel,
           chapterId,
           totalVotes,
-          choiceCount: voteCounts.length
+          choiceCount: voteCounts.length,
         });
       });
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -207,7 +213,7 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting vote update', {
         postId,
         chapterId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       // Don't throw - realtime failures shouldn't break the voting process
     }
@@ -223,29 +229,29 @@ export class RealtimeManager {
     previousStats: VotingStats
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_chapter_transition');
-    
+
     try {
       const channel = this.getChannelName(postId);
-      
+
       const message = {
         type: 'chapter_transition',
         timestamp: new Date().toISOString(),
         data: {
           newChapter,
           winningChoice,
-          previousStats
-        }
+          previousStats,
+        },
       };
 
       // Chapter transitions are important and should be sent immediately
       await realtime.send(channel, JSON.parse(JSON.stringify(message)));
-      
+
       stopTimer();
       ErrorLogger.logInfo('Chapter transition broadcasted', {
         channel,
         newChapterId: newChapter.id,
         winningChoice,
-        totalVotes: previousStats.totalVotes
+        totalVotes: previousStats.totalVotes,
       });
     } catch (error) {
       stopTimer();
@@ -253,7 +259,7 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting chapter transition', {
         postId,
         newChapterId: newChapter.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -267,27 +273,27 @@ export class RealtimeManager {
     newChapter: StoryChapter
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_story_reset');
-    
+
     try {
       const channel = this.getChannelName(postId);
-      
+
       const message = {
         type: 'story_reset',
         timestamp: new Date().toISOString(),
         data: {
           reason,
-          newChapter
-        }
+          newChapter,
+        },
       };
 
       // Story resets are important and should be sent immediately
       await realtime.send(channel, JSON.parse(JSON.stringify(message)));
-      
+
       stopTimer();
       ErrorLogger.logInfo('Story reset broadcasted', {
         channel,
         reason,
-        newChapterId: newChapter.id
+        newChapterId: newChapter.id,
       });
     } catch (error) {
       stopTimer();
@@ -295,14 +301,10 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting story reset', {
         postId,
         reason,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
-
-
-
-
 
   /**
    * Gets the channel name for client-side connection
@@ -311,8 +313,6 @@ export class RealtimeManager {
   static getClientChannelName(postId: string): string {
     return this.getChannelName(postId);
   }
-
-
 
   /**
    * Broadcasts voting ended notification (throttled)
@@ -324,33 +324,33 @@ export class RealtimeManager {
     finalStats: VotingStats
   ): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_voting_ended');
-    
+
     try {
       const channel = this.getChannelName(postId);
       const throttleKey = `voting_ended:${postId}:${chapterId}`;
-      
+
       const message = {
         type: 'voting_ended',
         timestamp: new Date().toISOString(),
         data: {
           chapterId,
           winningChoice,
-          finalStats
-        }
+          finalStats,
+        },
       };
 
       // Throttle to prevent duplicate notifications
       this.generalThrottler.throttle(throttleKey, message, async (msg) => {
         await realtime.send(channel, JSON.parse(JSON.stringify(msg)));
-        
+
         ErrorLogger.logInfo('Voting ended broadcasted', {
           channel,
           chapterId,
           winningChoice,
-          totalVotes: finalStats.totalVotes
+          totalVotes: finalStats.totalVotes,
         });
       });
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -358,7 +358,7 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting voting ended', {
         postId,
         chapterId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -366,34 +366,32 @@ export class RealtimeManager {
   /**
    * Broadcasts a generic message to the post channel (throttled)
    */
-  static async broadcastMessage(
-    postId: string,
-    message: any
-  ): Promise<void> {
+  static async broadcastMessage(postId: string, message: any): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_generic_message');
-    
+
     try {
       const channel = this.getChannelName(postId);
       const throttleKey = `generic:${postId}:${message.type || 'unknown'}`;
-      
+
       // Ensure timestamp is serializable
       const serializableMessage = {
         ...message,
-        timestamp: message.timestamp instanceof Date 
-          ? message.timestamp.toISOString() 
-          : message.timestamp || new Date().toISOString()
+        timestamp:
+          message.timestamp instanceof Date
+            ? message.timestamp.toISOString()
+            : message.timestamp || new Date().toISOString(),
       };
-      
+
       this.generalThrottler.throttle(throttleKey, serializableMessage, async (msg) => {
         await realtime.send(channel, msg);
-        
+
         ErrorLogger.logInfo('Generic message broadcasted', {
           channel,
           type: msg.type,
-          timestamp: msg.timestamp
+          timestamp: msg.timestamp,
         });
       });
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -401,7 +399,7 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting generic message', {
         postId,
         messageType: message.type,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -411,33 +409,33 @@ export class RealtimeManager {
    */
   static async broadcastConnectionTest(postId: string): Promise<void> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_connection_test');
-    
+
     try {
       const channel = this.getChannelName(postId);
       const throttleKey = `connection_test:${postId}`;
-      
+
       const message = {
         type: 'connection_test',
         timestamp: new Date().toISOString(),
         data: {
           message: 'Realtime connection is working',
-          serverTime: new Date().toISOString()
-        }
+          serverTime: new Date().toISOString(),
+        },
       };
 
       this.generalThrottler.throttle(throttleKey, message, async (msg) => {
         await realtime.send(channel, msg);
-        
+
         ErrorLogger.logInfo('Connection test broadcasted', { channel });
       });
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
       PerformanceMonitor.recordMetric('realtime_connection_test', 0, true);
       ErrorLogger.logWarning('Error broadcasting connection test', {
         postId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -450,7 +448,7 @@ export class RealtimeManager {
     error?: string;
   }> {
     const stopTimer = PerformanceMonitor.startTimer('realtime_validate_setup');
-    
+
     try {
       // Test sending a message to a test channel
       await realtime.send('test_channel', { test: true });
@@ -461,7 +459,7 @@ export class RealtimeManager {
       PerformanceMonitor.recordMetric('realtime_validate_setup', 0, true);
       return {
         isConfigured: false,
-        error: error instanceof Error ? error.message : 'Unknown realtime error'
+        error: error instanceof Error ? error.message : 'Unknown realtime error',
       };
     }
   }
@@ -480,15 +478,15 @@ export class RealtimeManager {
     if (updates.length === 0) return;
 
     const stopTimer = PerformanceMonitor.startTimer('realtime_batch_vote_updates');
-    
+
     try {
       const channel = this.getChannelName(postId);
       const batchKey = `vote_updates:${postId}`;
-      
-      const messages = updates.map(update => ({
+
+      const messages = updates.map((update) => ({
         type: 'vote_update',
         timestamp: new Date().toISOString(),
-        data: update
+        data: update,
       }));
 
       this.messageBatcher.addToBatch(batchKey, messages, async (batchedMessages) => {
@@ -497,18 +495,18 @@ export class RealtimeManager {
           type: 'vote_update_batch',
           timestamp: new Date().toISOString(),
           data: {
-            updates: batchedMessages.flat()
-          }
+            updates: batchedMessages.flat(),
+          },
         };
 
         await realtime.send(channel, JSON.parse(JSON.stringify(batchMessage)));
-        
+
         ErrorLogger.logInfo('Batch vote updates broadcasted', {
           channel,
-          updateCount: batchedMessages.flat().length
+          updateCount: batchedMessages.flat().length,
         });
       });
-      
+
       stopTimer();
     } catch (error) {
       stopTimer();
@@ -516,7 +514,7 @@ export class RealtimeManager {
       ErrorLogger.logWarning('Error broadcasting batch vote updates', {
         postId,
         updateCount: updates.length,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
     }
   }
@@ -531,12 +529,12 @@ export class RealtimeManager {
   } {
     return {
       throttler: {
-        pending: this.voteThrottler.getPendingCount() + this.generalThrottler.getPendingCount()
+        pending: this.voteThrottler.getPendingCount() + this.generalThrottler.getPendingCount(),
       },
       batcher: {
-        pending: this.messageBatcher['batches'].size
+        pending: this.messageBatcher['batches'].size,
       },
-      metrics: PerformanceMonitor.getMetrics()
+      metrics: PerformanceMonitor.getMetrics(),
     };
   }
 

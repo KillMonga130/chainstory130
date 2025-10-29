@@ -19,7 +19,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   votingActive,
   onVote,
   isLoading = false,
-  className = ''
+  className = '',
 }) => {
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
   const [isVoting, setIsVoting] = useState(false);
@@ -45,12 +45,12 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   };
 
   const getVoteCount = (choiceId: string): number => {
-    const voteData = voteCounts.find(vc => vc.choiceId === choiceId);
+    const voteData = voteCounts.find((vc) => vc.choiceId === choiceId);
     return voteData?.count || 0;
   };
 
   const getVotePercentage = (choiceId: string): number => {
-    const voteData = voteCounts.find(vc => vc.choiceId === choiceId);
+    const voteData = voteCounts.find((vc) => vc.choiceId === choiceId);
     return voteData?.percentage || 0;
   };
 
@@ -62,26 +62,26 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
     const baseClass = 'voting-button horror-transition';
     const isSelected = selectedChoice === choiceId;
     const hasVoted = userVoteStatus.hasVoted;
-    
+
     if (isSelected) {
       return `${baseClass} selected glow-animation`;
     }
-    
+
     if (hasVoted && !isSelected) {
       return `${baseClass} opacity-50`;
     }
-    
+
     if (!votingActive) {
       return `${baseClass} opacity-75 cursor-not-allowed`;
     }
-    
+
     return baseClass;
   };
 
   const renderVoteCount = (choiceId: string) => {
     const count = getVoteCount(choiceId);
     const percentage = getVotePercentage(choiceId);
-    
+
     return (
       <div className="vote-count-display">
         <div className="flex justify-between items-center">
@@ -89,10 +89,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
           <span className="text-sm font-bold">{percentage.toFixed(1)}%</span>
         </div>
         <div className="vote-progress-bar mt-1">
-          <div 
-            className="vote-progress-fill"
-            style={{ width: `${percentage}%` }}
-          />
+          <div className="vote-progress-fill" style={{ width: `${percentage}%` }} />
         </div>
       </div>
     );
@@ -111,13 +108,9 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
   return (
     <div className={`voting-interface ${className}`}>
       <div className="voting-header text-center mb-6">
-        <h2 className="horror-subtitle">
-          {votingActive ? 'Cast Your Vote' : 'Voting Complete'}
-        </h2>
+        <h2 className="horror-subtitle">{votingActive ? 'Cast Your Vote' : 'Voting Complete'}</h2>
         {votingActive && !userVoteStatus.hasVoted && (
-          <p className="horror-text text-sm mt-2">
-            Choose your path through the darkness...
-          </p>
+          <p className="horror-text text-sm mt-2">Choose your path through the darkness...</p>
         )}
         {userVoteStatus.hasVoted && (
           <p className="horror-text text-sm mt-2 text-horror-orange">
@@ -136,9 +129,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               <div className="choice-content">
-                <div className="choice-text font-semibold mb-2">
-                  {choice.text}
-                </div>
+                <div className="choice-text font-semibold mb-2">{choice.text}</div>
                 {choice.description && (
                   <div className="choice-description text-sm opacity-80 mb-3">
                     {choice.description}
@@ -151,7 +142,7 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
                 )}
               </div>
             </button>
-            
+
             {renderVoteCount(choice.id)}
           </div>
         ))}
@@ -176,8 +167,6 @@ export const VotingInterface: React.FC<VotingInterfaceProps> = ({
           <p className="horror-text text-sm mt-2">Casting your vote...</p>
         </div>
       )}
-
-
     </div>
   );
 };

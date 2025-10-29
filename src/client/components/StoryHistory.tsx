@@ -21,22 +21,22 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
   decisions,
   isOpen,
   onToggle,
-  className = ''
+  className = '',
 }) => {
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
   const getChapterById = (chapterId: string): StoryChapter | undefined => {
-    return chapters.find(chapter => chapter.id === chapterId);
+    return chapters.find((chapter) => chapter.id === chapterId);
   };
 
   const getDecisionForChapter = (chapterId: string) => {
-    return decisions.find(decision => decision.chapterId === chapterId);
+    return decisions.find((decision) => decision.chapterId === chapterId);
   };
 
   const renderChapterSummary = (chapterId: string, index: number) => {
     const chapter = getChapterById(chapterId);
     const decision = getDecisionForChapter(chapterId);
-    
+
     if (!chapter) return null;
 
     const isSelected = selectedChapter === chapterId;
@@ -51,12 +51,13 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
             <span className="chapter-number">Chapter {index + 1}</span>
             <span className="chapter-title">{chapter.title}</span>
           </div>
-          
+
           {decision && (
             <div className="decision-summary">
               <span className="winning-choice">"{decision.winningChoice}"</span>
               <span className="vote-count">
-                {decision.voteStats.totalVotes} votes ({decision.voteStats.winningPercentage.toFixed(1)}%)
+                {decision.voteStats.totalVotes} votes (
+                {decision.voteStats.winningPercentage.toFixed(1)}%)
               </span>
             </div>
           )}
@@ -66,13 +67,12 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
           <div className="chapter-details slide-up-animation">
             <div className="chapter-content">
               <p className="horror-text text-sm">
-                {chapter.content.length > 200 
-                  ? `${chapter.content.substring(0, 200)}...` 
-                  : chapter.content
-                }
+                {chapter.content.length > 200
+                  ? `${chapter.content.substring(0, 200)}...`
+                  : chapter.content}
               </p>
             </div>
-            
+
             {decision && (
               <div className="decision-details">
                 <h5 className="horror-text font-semibold text-xs mb-2">Community Decision:</h5>
@@ -91,7 +91,9 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
                   </div>
                   <div className="stat-item">
                     <span className="stat-label">Win Percentage:</span>
-                    <span className="stat-value">{decision.voteStats.winningPercentage.toFixed(1)}%</span>
+                    <span className="stat-value">
+                      {decision.voteStats.winningPercentage.toFixed(1)}%
+                    </span>
                   </div>
                 </div>
               </div>
@@ -112,9 +114,7 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
               <div className="node-dot" />
               {index < path.decisions.length && (
                 <div className="path-connection">
-                  <span className="decision-label">
-                    {path.decisions[index]}
-                  </span>
+                  <span className="decision-label">{path.decisions[index]}</span>
                 </div>
               )}
             </div>
@@ -132,20 +132,14 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
         onClick={onToggle}
         title={isOpen ? 'Close History' : 'View Story History'}
       >
-        <span className="toggle-icon">
-          {isOpen ? '✕' : '📖'}
-        </span>
+        <span className="toggle-icon">{isOpen ? '✕' : '📖'}</span>
       </button>
 
       {/* History Sidebar */}
       <div className={`story-history ${isOpen ? 'open' : ''} ${className}`}>
         <div className="history-header">
           <h3 className="horror-subtitle">Story History</h3>
-          <button
-            className="close-button"
-            onClick={onToggle}
-            title="Close History"
-          >
+          <button className="close-button" onClick={onToggle} title="Close History">
             ✕
           </button>
         </div>
@@ -158,9 +152,7 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
           <div className="chapters-history">
             <h4 className="horror-text font-semibold mb-3">Chapters</h4>
             <div className="chapters-list">
-              {path.chapters.map((chapterId, index) => 
-                renderChapterSummary(chapterId, index)
-              )}
+              {path.chapters.map((chapterId, index) => renderChapterSummary(chapterId, index))}
             </div>
           </div>
 
@@ -171,9 +163,7 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
               <div className="ending-card horror-card">
                 <h5 className="ending-title">{path.ending.title}</h5>
                 <p className="ending-type">Type: {path.ending.type}</p>
-                <p className="horror-text text-sm mt-2">
-                  {path.ending.content}
-                </p>
+                <p className="horror-text text-sm mt-2">{path.ending.content}</p>
               </div>
             </div>
           )}
@@ -181,15 +171,7 @@ export const StoryHistory: React.FC<StoryHistoryProps> = ({
       </div>
 
       {/* Overlay for mobile */}
-      {isOpen && (
-        <div 
-          className="history-overlay"
-          onClick={onToggle}
-        />
-      )}
-
-      
+      {isOpen && <div className="history-overlay" onClick={onToggle} />}
     </>
   );
 };
-

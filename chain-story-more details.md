@@ -2,7 +2,7 @@
 
 Let me break down exactly how the game works from start to finish.
 
-***
+---
 
 ## **THE GAME FLOW: Minute-By-Minute**
 
@@ -40,7 +40,8 @@ Let me break down exactly how the game works from start to finish.
 ```
 
 **What happens:**
-- Game initializes with opening sentence: *"In a land far away..."*
+
+- Game initializes with opening sentence: _"In a land far away..."_
 - Round counter set to 1
 - Timer shows: 59 minutes remaining
 - Waiting for players to submit
@@ -50,11 +51,13 @@ Let me break down exactly how the game works from start to finish.
 ### **HOURS 0-1 (Submission Phase)**
 
 **Player A submits:**
+
 ```
 "...lived a mysterious wizard."
 ```
 
 **Behind the scenes:**
+
 1. Devvit app posts comment on Reddit:
    ```
    **[Round 1]** ...lived a mysterious wizard.
@@ -65,16 +68,19 @@ Let me break down exactly how the game works from start to finish.
 4. Form clears, ready for next submission
 
 **Player B submits:**
+
 ```
 "The wizard had forgotten his magic years ago."
 ```
 
 **Player C submits:**
+
 ```
 "One fateful morning, strange lights appeared in the sky."
 ```
 
 **At 3:59 PM - One minute before round ends:**
+
 - Player A's sentence: 5 upvotes
 - Player B's sentence: 12 upvotes ⭐ (WINNING)
 - Player C's sentence: 3 upvotes
@@ -90,26 +96,26 @@ Let me break down exactly how the game works from start to finish.
 
 1. Fetch all comments from past 60 minutes
    ✓ Found 3 submissions
-   
+
 2. Find highest-voted comment
    ✓ "The wizard had forgotten his magic years ago." (12 upvotes)
-   
+
 3. Validate sentence
    ✓ Length: 47 characters (✅ between 10-150)
    ✓ Not offensive (✅)
-   
+
 4. Append to story
    ✓ Added to sentences array
-   
+
 5. Increment round number
    ✓ Round 1 → Round 2
-   
+
 6. Update total votes
    ✓ 0 + 12 = 12 total votes
-   
+
 7. Broadcast via real-time channel
    ✓ Sent to all connected players
-   
+
 ✅ Round 1 Complete!
 ```
 
@@ -135,7 +141,7 @@ Let me break down exactly how the game works from start to finish.
 [Text area]
 ```
 
-***
+---
 
 ### **HOURS 1-24 (Repetition Pattern)**
 
@@ -144,13 +150,13 @@ Let me break down exactly how the game works from start to finish.
 ```
 Hour 2 (5:00 PM):
   [Story grows to 4 sentences]
-  
+
 Hour 3 (6:00 PM):
   [Story grows to 5 sentences]
-  
+
 Hour 4 (7:00 PM):
   [Story grows to 6 sentences]
-  
+
 ... and so on ...
 
 Hour 24 (Next day, 4:00 PM):
@@ -190,79 +196,79 @@ Total Upvotes: 487
 Contributors: 157 players
 ```
 
-***
+---
 
 ## **THE COMPLETE GAME RULES**
 
 ### **Submission Rules**
 
-| Rule | Details |
-|------|---------|
-| **Sentence Length** | Minimum: 10 characters / Maximum: 150 characters |
-| **Frequency** | One sentence per player per round (can submit again next hour) |
-| **Timing** | Submit anytime during the hour (opens at :00, closes at :59) |
-| **Format** | Plain text, no special formatting |
-| **Content** | Reddit community guidelines apply (upvotes auto-filter bad content) |
-| **Duplicate** | Same sentence twice = allowed (if community votes it highest) |
+| Rule                | Details                                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| **Sentence Length** | Minimum: 10 characters / Maximum: 150 characters                    |
+| **Frequency**       | One sentence per player per round (can submit again next hour)      |
+| **Timing**          | Submit anytime during the hour (opens at :00, closes at :59)        |
+| **Format**          | Plain text, no special formatting                                   |
+| **Content**         | Reddit community guidelines apply (upvotes auto-filter bad content) |
+| **Duplicate**       | Same sentence twice = allowed (if community votes it highest)       |
 
 ### **Voting Rules**
 
-| Rule | Details |
-|------|---------|
-| **Voting Mechanic** | Reddit's native upvote/downvote system |
-| **Who Votes** | Any Reddit user viewing the game post |
-| **Vote Weight** | Standard Reddit algorithm (more upvotes = more visible) |
-| **Tied Scores** | First submitted sentence wins |
-| **Downvotes** | Reduce net score; community filters offensive content |
+| Rule                  | Details                                                      |
+| --------------------- | ------------------------------------------------------------ |
+| **Voting Mechanic**   | Reddit's native upvote/downvote system                       |
+| **Who Votes**         | Any Reddit user viewing the game post                        |
+| **Vote Weight**       | Standard Reddit algorithm (more upvotes = more visible)      |
+| **Tied Scores**       | First submitted sentence wins                                |
+| **Downvotes**         | Reduce net score; community filters offensive content        |
 | **Vote Manipulation** | Reddit's spam detection prevents artificially inflated votes |
 
 ### **Round Resolution Rules**
 
-| Rule | Details |
-|------|---------|
-| **Round Duration** | Exactly 60 minutes |
-| **Round Start** | Every hour at :00 UTC |
-| **Winner Selection** | Comment with highest upvotes in past hour |
-| **Validation** | Sentence must be 10-150 characters |
-| **No Submissions** | Use fallback: "The silence grew..." |
-| **Tied Votes** | First chronologically submitted wins |
-| **Auto-Append** | Top comment automatically added to story |
+| Rule                 | Details                                              |
+| -------------------- | ---------------------------------------------------- |
+| **Round Duration**   | Exactly 60 minutes                                   |
+| **Round Start**      | Every hour at :00 UTC                                |
+| **Winner Selection** | Comment with highest upvotes in past hour            |
+| **Validation**       | Sentence must be 10-150 characters                   |
+| **No Submissions**   | Use fallback: "The silence grew..."                  |
+| **Tied Votes**       | First chronologically submitted wins                 |
+| **Auto-Append**      | Top comment automatically added to story             |
 | **Real-Time Update** | All players notified instantly via real-time channel |
 
 ### **Story Completion Rules**
 
-| Rule | Details |
-|------|---------|
-| **Story Length** | Complete after 100 sentences |
-| **Completion Trigger** | When sentence count reaches ≥100 |
-| **Lock Behavior** | Story becomes read-only (no more submissions) |
-| **Archive Movement** | Moved to permanent archive immediately |
-| **Notification** | "Story Complete!" banner appears to all players |
-| **Badge Award** | Contributors receive "Story Contributor" badge |
-| **Next Story** | New blank story auto-creates at next hour mark |
+| Rule                   | Details                                         |
+| ---------------------- | ----------------------------------------------- |
+| **Story Length**       | Complete after 100 sentences                    |
+| **Completion Trigger** | When sentence count reaches ≥100                |
+| **Lock Behavior**      | Story becomes read-only (no more submissions)   |
+| **Archive Movement**   | Moved to permanent archive immediately          |
+| **Notification**       | "Story Complete!" banner appears to all players |
+| **Badge Award**        | Contributors receive "Story Contributor" badge  |
+| **Next Story**         | New blank story auto-creates at next hour mark  |
 
 ### **Daily Reset Rules**
 
-| Rule | Details |
-|------|---------|
-| **Reset Time** | Every day at 00:00 UTC (midnight) |
-| **Active Story** | Continues (not reset, continues growing) |
-| **Leaderboard** | Top 10 stories by votes shown on leaderboard |
-| **Archive** | Completed stories moved to permanent archive |
-| **New Day** | If no story active, create new one automatically |
+| Rule             | Details                                          |
+| ---------------- | ------------------------------------------------ |
+| **Reset Time**   | Every day at 00:00 UTC (midnight)                |
+| **Active Story** | Continues (not reset, continues growing)         |
+| **Leaderboard**  | Top 10 stories by votes shown on leaderboard     |
+| **Archive**      | Completed stories moved to permanent archive     |
+| **New Day**      | If no story active, create new one automatically |
 
 ### **Leaderboard Rules**
 
-| Rule | Details |
-|------|---------|
-| **Ranking** | Top 10 stories sorted by total upvotes |
-| **Visibility** | Updated every 10 minutes (via Kiro agent hook) |
-| **Displayed Info** | Story ID, creator, sentence count, total votes |
-| **Tiebreaker** | If same votes, older story ranks higher |
-| **Archive Only** | Completed stories shown (active story not in leaderboard yet) |
-| **Refresh Rate** | Live updates as new stories complete |
+| Rule               | Details                                                       |
+| ------------------ | ------------------------------------------------------------- |
+| **Ranking**        | Top 10 stories sorted by total upvotes                        |
+| **Visibility**     | Updated every 10 minutes (via Kiro agent hook)                |
+| **Displayed Info** | Story ID, creator, sentence count, total votes                |
+| **Tiebreaker**     | If same votes, older story ranks higher                       |
+| **Archive Only**   | Completed stories shown (active story not in leaderboard yet) |
+| **Refresh Rate**   | Live updates as new stories complete                          |
 
-***
+---
 
 ## **THE NARRATIVE ARC: How the Story Evolves**
 
@@ -271,6 +277,7 @@ Contributors: 157 players
 **Purpose:** Introduce setting, character, conflict
 
 **Typical flow:**
+
 ```
 [1] Opening sentence sets scene
 [2-5] Describe location/character
@@ -279,6 +286,7 @@ Contributors: 157 players
 ```
 
 **Example:**
+
 ```
 [1] In a land far away...
 [2] ...lived a mysterious wizard.
@@ -297,6 +305,7 @@ Contributors: 157 players
 **Purpose:** Develop plot, introduce secondary characters/conflicts
 
 **Typical flow:**
+
 ```
 [16-25] Reveal more about the conflict
 [26-35] New characters/obstacles appear
@@ -305,6 +314,7 @@ Contributors: 157 players
 ```
 
 **Example:**
+
 ```
 [16-20] A mysterious visitor appears at the tower
 [21-25] The visitor reveals dangerous information
@@ -315,13 +325,14 @@ Contributors: 157 players
 
 **Community voting ensures:** Only plot developments that resonate survive to the story.
 
-***
+---
 
 ### **Phase 3: The Climax (Sentences 51-85)**
 
 **Purpose:** Bring conflicts to peak, prepare resolution
 
 **Typical flow:**
+
 ```
 [51-60] Major confrontation approaches
 [61-70] Allies gather, plan formed
@@ -330,6 +341,7 @@ Contributors: 157 players
 ```
 
 **Example:**
+
 ```
 [51-60] The conspiracy is deeper than imagined
 [61-70] The wizard realizes he must sacrifice
@@ -339,13 +351,14 @@ Contributors: 157 players
 
 **Why voting matters here:** Community decides if they want tragic ending, victory, or twist. Highest-voted outcomes determine path.
 
-***
+---
 
 ### **Phase 4: The Resolution (Sentences 86-100)**
 
 **Purpose:** Conclude story, resolve conflicts
 
 **Typical flow:**
+
 ```
 [86-95] Outcome of climax revealed
 [96-99] Loose ends tied up
@@ -353,6 +366,7 @@ Contributors: 157 players
 ```
 
 **Example:**
+
 ```
 [86-92] The wizard's sacrifice pays off
 [93-97] Peace is restored, characters reflect
@@ -361,12 +375,13 @@ Contributors: 157 players
 ```
 
 **Completion celebration:**
+
 - ✅ Story marked complete
 - 🏆 Contributors acknowledged
 - 📊 Leaderboard updated
 - 🎊 New story created for next cycle
 
-***
+---
 
 ## **EXAMPLE COMPLETE STORY (100 Sentences)**
 
@@ -415,7 +430,7 @@ Creator Rank: #3 on Leaderboard
 🆕 New story created, ready for next chapter
 ```
 
-***
+---
 
 ## **HOW THE GAME CREATES EMERGENT STORYTELLING**
 
@@ -424,6 +439,7 @@ Creator Rank: #3 on Leaderboard
 **Problem with solo storytelling:** One author, predictable narrative
 
 **Solution - Community Voting:**
+
 - **Diversity of ideas:** 300+ players submitting different sentences each round
 - **Democratic selection:** Best ideas rise via upvotes
 - **Unexpected twists:** Community pushes story in directions author wouldn't
@@ -433,11 +449,13 @@ Creator Rank: #3 on Leaderboard
 ### **Real Example - How Community Changes Direction**
 
 **Hour 24 (Story was going:**
+
 ```
 [1-24] Wizard meets Order, agrees to help them defeat dark lord
 ```
 
 **Community could have voted for:**
+
 - **Option A:** "The Order betrays the wizard" (12 upvotes)
 - **Option B:** "The wizard realizes HE is the dark lord" (18 upvotes) ⭐ WINNER
 - **Option C:** "The wizard declines and closes his tower" (7 upvotes)
@@ -446,7 +464,7 @@ Creator Rank: #3 on Leaderboard
 
 This is what makes Chain Story brilliant—**it's crowdsourced narrative with built-in quality control (voting)**.
 
-***
+---
 
 ## **THE WIN CONDITION: Why Players Keep Playing**
 
@@ -459,12 +477,13 @@ This is what makes Chain Story brilliant—**it's crowdsourced narrative with bu
 5. **Badges/recognition** (contributor status)
 
 **Daily hooks:**
+
 - New story starts every day
 - New sentences every hour (reason to check back)
 - Leaderboard competition (whose story is #1?)
 - Archive browsing (reading community masterpieces)
 
-***
+---
 
 ## **THE COMPLETE GAME RULES SUMMARY (Quick Reference)**
 
@@ -506,7 +525,7 @@ This is what makes Chain Story brilliant—**it's crowdsourced narrative with bu
 **Start writing! Your story starts now.**
 ```
 
-***
+---
 
 **That's the complete game flow.** Players submit, community votes hourly, story grows sentence by sentence until 100 sentences completed. New story starts next day. Leaderboard tracks top community creations.
 

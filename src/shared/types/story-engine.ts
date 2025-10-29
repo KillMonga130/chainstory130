@@ -2,13 +2,13 @@
  * Story branching logic and decision tree navigation for The Haunted Thread
  */
 
-import { 
-  StoryChapter, 
-  StoryPath, 
-  StoryContext, 
-  StoryEnding, 
+import {
+  StoryChapter,
+  StoryPath,
+  StoryContext,
+  StoryEnding,
   ValidationResult,
-  StoryProgression 
+  StoryProgression,
 } from './story.js';
 
 /**
@@ -43,7 +43,7 @@ export class StoryBranchingEngine {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -65,7 +65,11 @@ export class StoryBranchingEngine {
   /**
    * Determines the next chapter based on winning choice
    */
-  determineNextChapter(currentChapter: string, winningChoice: string, context: StoryContext): string | null {
+  determineNextChapter(
+    currentChapter: string,
+    winningChoice: string,
+    context: StoryContext
+  ): string | null {
     // Check if this choice leads to an ending
     const ending = this.checkForEnding(context.pathTaken, winningChoice);
     if (ending) {
@@ -81,7 +85,7 @@ export class StoryBranchingEngine {
    */
   checkForEnding(pathTaken: string[], newChoice: string): StoryEnding | null {
     const fullPath = [...pathTaken, newChoice];
-    
+
     // Check each ending to see if path requirements are met
     for (const [, ending] of this.endings) {
       if (this.pathMeetsRequirements(fullPath, ending.pathRequirements)) {
@@ -98,7 +102,7 @@ export class StoryBranchingEngine {
   detectStoryConclusion(context: StoryContext): { hasEnded: boolean; ending?: StoryEnding } {
     // Check if current path leads to any ending
     const ending = this.checkForEnding(context.pathTaken, '');
-    
+
     if (ending) {
       return { hasEnded: true, ending };
     }
@@ -106,9 +110,9 @@ export class StoryBranchingEngine {
     // Check if we've reached maximum story length
     const maxChapters = this.getMaxStoryLength();
     if (context.pathTaken.length >= maxChapters) {
-      return { 
-        hasEnded: true, 
-        ending: this.getDefaultEnding(context.pathTaken) 
+      return {
+        hasEnded: true,
+        ending: this.getDefaultEnding(context.pathTaken),
       };
     }
 
@@ -129,7 +133,7 @@ export class StoryBranchingEngine {
       currentPosition,
       completedPaths,
       availablePaths,
-      progressPercentage: Math.round((currentPosition / totalPossibleChapters) * 100)
+      progressPercentage: Math.round((currentPosition / totalPossibleChapters) * 100),
     };
   }
 
@@ -155,14 +159,14 @@ export class StoryBranchingEngine {
     const branches: StoryBranch[] = [];
     const validTransitions = this.getValidTransitions(currentChapter);
 
-    validTransitions.forEach(choiceId => {
+    validTransitions.forEach((choiceId) => {
       const nextChapter = this.generateNextChapterId(currentChapter, choiceId);
       const branch: StoryBranch = {
         choiceId,
         nextChapter,
         branchType: this.determineBranchType(currentChapter, choiceId),
         difficulty: this.calculateBranchDifficulty(currentChapter, choiceId),
-        estimatedLength: this.estimateBranchLength(currentChapter, choiceId)
+        estimatedLength: this.estimateBranchLength(currentChapter, choiceId),
       };
       branches.push(branch);
     });
@@ -189,7 +193,7 @@ export class StoryBranchingEngine {
 
     return {
       isValid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -197,7 +201,7 @@ export class StoryBranchingEngine {
    * Checks if a path meets the requirements for a specific ending
    */
   private pathMeetsRequirements(path: string[], requirements: string[]): boolean {
-    return requirements.every(requirement => {
+    return requirements.every((requirement) => {
       // Check if requirement is a specific choice that must be in path
       if (requirement.startsWith('choice:')) {
         const requiredChoice = requirement.substring(7);
@@ -227,13 +231,13 @@ export class StoryBranchingEngine {
     for (let i = 0; i < path.chapters.length - 1; i++) {
       const currentChapter = path.chapters[i];
       const nextChapter = path.chapters[i + 1];
-      
+
       if (!currentChapter || !nextChapter) continue;
-      
+
       if (!this.chapterGraph.has(currentChapter)) {
         this.chapterGraph.set(currentChapter, []);
       }
-      
+
       const transitions = this.chapterGraph.get(currentChapter)!;
       if (!transitions.includes(nextChapter)) {
         transitions.push(nextChapter);
@@ -267,9 +271,12 @@ export class StoryBranchingEngine {
    */
   private getCompletedPaths(context: StoryContext): string[] {
     const completed: string[] = [];
-    
+
     for (const [pathId, path] of this.storyPaths) {
-      if (path.ending && this.pathMeetsRequirements(context.pathTaken, path.ending.pathRequirements)) {
+      if (
+        path.ending &&
+        this.pathMeetsRequirements(context.pathTaken, path.ending.pathRequirements)
+      ) {
         completed.push(pathId);
       }
     }
@@ -291,9 +298,10 @@ export class StoryBranchingEngine {
     return {
       id: 'default_ending',
       title: 'The Mystery Continues...',
-      content: 'Your journey through the haunted thread has led you deep into the mystery, but some secrets are meant to remain hidden. The story continues in the shadows...',
+      content:
+        'Your journey through the haunted thread has led you deep into the mystery, but some secrets are meant to remain hidden. The story continues in the shadows...',
       type: 'neutral',
-      pathRequirements: []
+      pathRequirements: [],
     };
   }
 
@@ -351,16 +359,16 @@ export class DecisionTreeNavigator {
    * Builds decision tree from story chapters and choices
    */
   buildDecisionTree(chapters: StoryChapter[]): void {
-    chapters.forEach(chapter => {
+    chapters.forEach((chapter) => {
       const node: DecisionNode = {
         chapterId: chapter.id,
-        choices: chapter.choices.map(choice => ({
+        choices: chapter.choices.map((choice) => ({
           choiceId: choice.id,
           text: choice.text,
           nextNode: null, // Will be populated when connections are made
-          weight: choice.voteCount || 0
+          weight: choice.voteCount || 0,
         })),
-        isEndNode: chapter.choices.length === 0
+        isEndNode: chapter.choices.length === 0,
       };
 
       this.decisionTree.set(chapter.id, node);
@@ -377,7 +385,7 @@ export class DecisionTreeNavigator {
     const currentNode = this.decisionTree.get(currentNodeId);
     if (!currentNode) return null;
 
-    const choice = currentNode.choices.find(c => c.choiceId === choiceId);
+    const choice = currentNode.choices.find((c) => c.choiceId === choiceId);
     return choice?.nextNode || null;
   }
 
@@ -394,12 +402,14 @@ export class DecisionTreeNavigator {
    * Finds the shortest path to any ending
    */
   findShortestPathToEnd(startNodeId: string): string[] | null {
-    const queue: { nodeId: string; path: string[] }[] = [{ nodeId: startNodeId, path: [startNodeId] }];
+    const queue: { nodeId: string; path: string[] }[] = [
+      { nodeId: startNodeId, path: [startNodeId] },
+    ];
     const visited = new Set<string>();
 
     while (queue.length > 0) {
       const { nodeId, path } = queue.shift()!;
-      
+
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);
 
@@ -410,12 +420,12 @@ export class DecisionTreeNavigator {
         return path;
       }
 
-      node.choices.forEach(choice => {
+      node.choices.forEach((choice) => {
         const nextNode = choice.nextNode;
         if (nextNode && !visited.has(nextNode)) {
           queue.push({
             nodeId: nextNode,
-            path: [...path, nextNode]
+            path: [...path, nextNode],
           });
         }
       });
@@ -431,7 +441,7 @@ export class DecisionTreeNavigator {
     // This would be implemented based on specific story structure
     // For now, we'll use a simple naming convention
     for (const [nodeId, node] of this.decisionTree) {
-      node.choices.forEach(choice => {
+      node.choices.forEach((choice) => {
         // Simple logic: next node is based on choice ID
         const nextNodeId = `${nodeId}_${choice.choiceId}_next`;
         if (this.decisionTree.has(nextNodeId)) {
@@ -455,7 +465,7 @@ export class DecisionTreeNavigator {
       return;
     }
 
-    node.choices.forEach(choice => {
+    node.choices.forEach((choice) => {
       const nextNode = choice.nextNode;
       if (nextNode && !currentPath.includes(nextNode)) {
         this.findAllPaths(nextNode, newPath, allPaths);

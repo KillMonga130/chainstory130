@@ -69,7 +69,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
       setLoading(true);
       const response = await fetch('/api/story/branches');
       const result = await response.json();
-      
+
       if (result.success) {
         setBranches(result.data.branches);
       } else {
@@ -87,7 +87,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
     try {
       const response = await fetch('/api/story/completed');
       const result = await response.json();
-      
+
       if (result.success) {
         setCompletedPaths(result.data);
       } else {
@@ -102,10 +102,10 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch(`/api/story/replay/${pathId}`);
       const result = await response.json();
-      
+
       if (result.success) {
         setReplayData(result.data);
         setActiveTab('replay');
@@ -124,7 +124,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await fetch('/api/story/restart', {
         method: 'POST',
         headers: {
@@ -132,19 +132,19 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
         },
         body: JSON.stringify({ preserveHistory }),
       });
-      
+
       const result = await response.json();
-      
+
       if (result.success) {
         // Notify parent component about restart
         if (onRestart) {
           onRestart(result.data.chapter, result.data.context);
         }
-        
+
         // Refresh data
         await loadBranches();
         await loadCompletedPaths();
-        
+
         // Close the replay interface
         if (onClose) {
           onClose();
@@ -166,7 +166,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
         <h3>Alternative Story Paths</h3>
         <p>Explore different narrative branches and see where each path leads.</p>
       </div>
-      
+
       {branches.length === 0 ? (
         <div className="no-branches">
           <p>No alternative branches available yet.</p>
@@ -174,19 +174,17 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
       ) : (
         <div className="branches-grid">
           {branches.map((branch) => (
-            <div 
-              key={branch.branchId} 
+            <div
+              key={branch.branchId}
               className={`branch-card ${branch.isCompleted ? 'completed' : 'available'}`}
             >
               <div className="branch-header">
                 <h4>{branch.title}</h4>
-                {branch.isCompleted && (
-                  <span className="completed-badge">✓ Completed</span>
-                )}
+                {branch.isCompleted && <span className="completed-badge">✓ Completed</span>}
               </div>
-              
+
               <p className="branch-description">{branch.description}</p>
-              
+
               <div className="branch-choices">
                 <h5>Available Choices:</h5>
                 <ul>
@@ -200,12 +198,9 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                   ))}
                 </ul>
               </div>
-              
+
               {branch.isCompleted && (
-                <button 
-                  className="replay-button"
-                  onClick={() => loadReplayData(branch.branchId)}
-                >
+                <button className="replay-button" onClick={() => loadReplayData(branch.branchId)}>
                   View Replay
                 </button>
               )}
@@ -237,7 +232,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
           </div>
         )}
       </div>
-      
+
       {!completedPaths || completedPaths.completedPaths.length === 0 ? (
         <div className="no-completed">
           <p>No completed paths yet. Finish a story to see it here!</p>
@@ -250,10 +245,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                 <h4>Path #{index + 1}</h4>
                 <p className="path-id">{pathId}</p>
               </div>
-              <button 
-                className="replay-button"
-                onClick={() => loadReplayData(pathId)}
-              >
+              <button className="replay-button" onClick={() => loadReplayData(pathId)}>
                 View Replay
               </button>
             </div>
@@ -269,15 +261,12 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
     return (
       <div className="story-replay">
         <div className="replay-header">
-          <button 
-            className="back-button"
-            onClick={() => setActiveTab('completed')}
-          >
+          <button className="back-button" onClick={() => setActiveTab('completed')}>
             ← Back to Completed Paths
           </button>
           <h3>Story Replay: {replayData.pathId}</h3>
         </div>
-        
+
         <div className="replay-content">
           {replayData.chapters.map((chapter, index) => (
             <div key={chapter.id} className="replay-chapter">
@@ -285,16 +274,16 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                 <h4>{chapter.title}</h4>
                 <span className="chapter-number">Chapter {index + 1}</span>
               </div>
-              
+
               <div className="chapter-content">
                 <p>{chapter.content}</p>
               </div>
-              
+
               <div className="chapter-choices">
                 <h5>Available Choices:</h5>
                 <ul>
                   {chapter.choices.map((choice) => (
-                    <li 
+                    <li
                       key={choice.id}
                       className={replayData.decisions[index] === choice.id ? 'chosen' : ''}
                     >
@@ -311,7 +300,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
               </div>
             </div>
           ))}
-          
+
           {replayData.ending && (
             <div className="replay-ending">
               <h4>Story Ending</h4>
@@ -329,23 +318,25 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
         <div className="replay-modal">
           <div className="modal-header">
             <h2>Story Management</h2>
-            <button className="close-button" onClick={onClose}>×</button>
+            <button className="close-button" onClick={onClose}>
+              ×
+            </button>
           </div>
-          
+
           <div className="modal-content">
             {/* Restart Section */}
             <div className="restart-section">
               <h3>Restart Story</h3>
               <p>Begin a new journey through the haunted thread.</p>
               <div className="restart-buttons">
-                <button 
+                <button
                   className="restart-button preserve"
                   onClick={() => handleRestart(true)}
                   disabled={loading}
                 >
                   Restart (Keep History)
                 </button>
-                <button 
+                <button
                   className="restart-button fresh"
                   onClick={() => handleRestart(false)}
                   disabled={loading}
@@ -354,23 +345,23 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                 </button>
               </div>
             </div>
-            
+
             {/* Tab Navigation */}
             <div className="tab-navigation">
-              <button 
+              <button
                 className={`tab-button ${activeTab === 'branches' ? 'active' : ''}`}
                 onClick={() => setActiveTab('branches')}
               >
                 Story Branches
               </button>
-              <button 
+              <button
                 className={`tab-button ${activeTab === 'completed' ? 'active' : ''}`}
                 onClick={() => setActiveTab('completed')}
               >
                 Completed Paths
               </button>
               {replayData && (
-                <button 
+                <button
                   className={`tab-button ${activeTab === 'replay' ? 'active' : ''}`}
                   onClick={() => setActiveTab('replay')}
                 >
@@ -378,7 +369,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                 </button>
               )}
             </div>
-            
+
             {/* Content Area */}
             <div className="tab-content">
               {loading && <LoadingSpinner />}
@@ -388,7 +379,7 @@ export const StoryReplay: React.FC<StoryReplayProps> = ({ onRestart, onClose }) 
                   <button onClick={() => setError(null)}>Dismiss</button>
                 </div>
               )}
-              
+
               {!loading && !error && (
                 <>
                   {activeTab === 'branches' && renderBranches()}

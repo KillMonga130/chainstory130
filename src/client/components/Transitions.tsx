@@ -13,7 +13,7 @@ export const Transition: React.FC<TransitionProps> = ({
   type = 'fade',
   duration = 600,
   delay = 0,
-  className = ''
+  className = '',
 }) => {
   const [isVisible, setIsVisible] = useState(false);
 
@@ -28,21 +28,21 @@ export const Transition: React.FC<TransitionProps> = ({
   const getTransitionClass = () => {
     const baseClass = 'transition-element';
     const visibleClass = isVisible ? 'visible' : 'hidden';
-    
+
     return `${baseClass} ${type}-transition ${visibleClass} ${className}`;
   };
 
   return (
-    <div 
+    <div
       className={getTransitionClass()}
-      style={{ 
-        '--transition-duration': `${duration}ms`,
-        '--transition-delay': `${delay}ms`
-      } as React.CSSProperties}
+      style={
+        {
+          '--transition-duration': `${duration}ms`,
+          '--transition-delay': `${delay}ms`,
+        } as React.CSSProperties
+      }
     >
       {children}
-
-      
     </div>
   );
 };
@@ -56,17 +56,17 @@ interface ChapterTransitionProps {
 export const ChapterTransition: React.FC<ChapterTransitionProps> = ({
   isTransitioning,
   children,
-  onTransitionComplete
+  onTransitionComplete,
 }) => {
   const [phase, setPhase] = useState<'idle' | 'exit' | 'enter'>('idle');
 
   useEffect(() => {
     if (isTransitioning) {
       setPhase('exit');
-      
+
       const exitTimer = setTimeout(() => {
         setPhase('enter');
-        
+
         const enterTimer = setTimeout(() => {
           setPhase('idle');
           onTransitionComplete?.();
@@ -79,12 +79,5 @@ export const ChapterTransition: React.FC<ChapterTransitionProps> = ({
     }
   }, [isTransitioning, onTransitionComplete]);
 
-  return (
-    <div className={`chapter-transition-container ${phase}`}>
-      {children}
-
-      
-    </div>
-  );
+  return <div className={`chapter-transition-container ${phase}`}>{children}</div>;
 };
-
