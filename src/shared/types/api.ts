@@ -1,176 +1,168 @@
-// Core data structures for Chain Story
-export interface Story {
-  id: string;                    // Unique identifier (story_timestamp)
-  created: number;               // Unix timestamp of creation
-  sentences: string[];           // Array of story sentences [0] to [99]
-  roundNumber: number;           // Current round (1-100)
-  totalVotes: number;            // Sum of all winning sentence upvotes
-  status: 'active' | 'completed' | 'archived';
-  contributors: string[];        // Unique Reddit usernames who contributed
-  completedAt?: number;          // Unix timestamp when story reached 100 sentences
+/**
+ * API contract interfaces for client-server communication
+ */
+
+import { StoryChapter, StoryPath, StoryContext } from './story.js';
+import { VoteResult, VoteCount, UserVoteStatus, VotingStats } from './voting.js';
+
+// Story API Endpoints
+
+export interface GetCurrentStoryResponse {
+  success: boolean;
+  data?: {
+    chapter: StoryChapter;
+    context: StoryContext;
+    votingActive: boolean;
+  };
+  error?: string;
 }
 
-export interface Round {
-  storyId: string;               // Associated story ID
-  roundNumber: number;           // Round number (1-100)
-  startTime: number;             // Unix timestamp when round started
-  endTime: number;               // Unix timestamp when round ended
-  submissions: Submission[];     // All sentences submitted this round
-  winner?: {                     // Winning submission (highest votes)
-    commentId: string;
-    sentence: string;
-    upvotes: number;
-    userId: string;
-  } | undefined;
+export interface GetStoryHistoryResponse {
+  success: boolean;
+  data?: {
+    path: StoryPath;
+    chapters: StoryChapter[];
+    decisions: Array<{
+      chapterId: string;
+      winningChoice: string;
+      voteStats: VotingStats;
+    }>;
+  };
+  error?: string;
 }
 
-export interface Submission {
-  commentId: string;             // Reddit comment ID
-  sentence: string;              // Submitted sentence text
-  upvotes: number;               // Current upvote count
-  userId: string;                // Reddit username of submitter
-  timestamp: number;             // Unix timestamp of submission
+export interface ResetStoryRequest {
+  adminKey?: string;
+  reason?: string;
 }
 
-export interface LeaderboardEntry {
-  rank: number;                  // Position in leaderboard (1-10)
-  storyId: string;               // Story identifier
-  sentenceCount: number;         // Total sentences in story (should be 100)
-  totalVotes: number;            // Sum of all sentence upvotes
-  creator: string;               // Username who submitted first sentence
-  completedAt: number;           // When story was completed
-  preview: string;               // First 100 characters of story
-}
-
-export interface UserContribution {
-  userId: string;                // Reddit username
-  submissions: {                 // All sentences submitted by user
-    storyId: string;
-    roundNumber: number;
-    sentence: string;
-    upvotes: number;
-    wasWinner: boolean;
-  }[];
-  totalSubmissions: number;      // Count of all submissions
-  totalWins: number;             // Count of winning submissions
-  totalUpvotes: number;          // Sum of upvotes across all submissions
-}
-
-// API Response types
-export type CurrentStoryResponse = {
-  type: 'current-story';
-  story: Story;
-  roundTimeRemaining: number;    // Seconds until next round
-};
-
-export type SubmitSentenceRequest = {
-  storyId: string;
-  roundNumber: number;
-  sentence: string;
-};
-
-export type SubmitSentenceResponse = {
-  type: 'submit-sentence';
+export interface ResetStoryResponse {
   success: boolean;
   message: string;
-  commentId?: string;
-};
-
-export type LeaderboardResponse = {
-  type: 'leaderboard';
-  stories: LeaderboardEntry[];
-};
-
-export type ArchiveResponse = {
-  type: 'archive';
-  stories: Story[];
-  totalPages: number;
-  currentPage: number;
-};
-
-export type UserContributionsResponse = {
-  type: 'user-contributions';
-  contributions: UserContribution;
-};
-
-export type UserStoriesResponse = {
-  type: 'user-stories';
-  stories: Story[];
-  totalPages: number;
-  currentPage: number;
-};
-
-export type UserStatsResponse = {
-  type: 'user-stats';
-  stats: {
-    totalSubmissions: number;
-    totalWins: number;
-    totalUpvotes: number;
-    winRate: number;
-    averageUpvotes: number;
-    storiesContributedTo: number;
-  };
-};
-
-// Real-time message types
-export type StoryUpdateMessage = {
-  type: 'story-update';
-  story: Story;
-  roundTimeRemaining: number;
-  newSentence?: {
-    sentence: string;
-    roundNumber: number;
-    userId: string;
-    upvotes: number;
-  } | undefined;
-};
-
-export type NewRoundMessage = {
-  type: 'new-round';
-  storyId: string;
-  roundNumber: number;
-  roundTimeRemaining: number;
-};
-
-export type StoryCompleteMessage = {
-  type: 'story-complete';
-  completedStory: Story;
-  newStory: Story;
-};
-
-export type RealTimeMessage = StoryUpdateMessage | NewRoundMessage | StoryCompleteMessage;
-
-// Validation functions
-export function validateSentenceLength(sentence: string): { valid: boolean; error?: string } {
-  const trimmed = sentence.trim();
-  
-  if (trimmed.length < 10) {
-    return { valid: false, error: 'Sentence must be at least 10 characters long' };
-  }
-  
-  if (trimmed.length > 150) {
-    return { valid: false, error: 'Sentence must be no more than 150 characters long' };
-  }
-  
-  return { valid: true };
 }
 
-export function validateStoryState(story: Story): { valid: boolean; error?: string } {
-  if (story.sentences.length > 100) {
-    return { valid: false, error: 'Story cannot have more than 100 sentences' };
-  }
-  
-  if (story.roundNumber < 1 || story.roundNumber > 100) {
-    return { valid: false, error: 'Round number must be between 1 and 100' };
-  }
-  
-  if (story.status === 'completed' && story.sentences.length !== 100) {
-    return { valid: false, error: 'Completed story must have exactly 100 sentences' };
-  }
-  
-  if (story.status === 'completed' && !story.completedAt) {
-    return { valid: false, error: 'Completed story must have completedAt timestamp' };
-  }
-  
-  return { valid: true };
+// Voting API Endpoints
+
+export interface CastVoteRequest {
+  chapterId: string;
+  choiceId: string;
+}
+
+export interface CastVoteResponse {
+  success: boolean;
+  data?: VoteResult;
+  error?: string;
+}
+
+export interface GetVoteCountsResponse {
+  success: boolean;
+  data?: VoteCount[];
+  error?: string;
+}
+
+export interface GetVoteStatusResponse {
+  success: boolean;
+  data?: UserVoteStatus;
+  error?: string;
+}
+
+// Administrative API Endpoints
+
+export interface AdvanceStoryRequest {
+  adminKey: string;
+  forceChoice?: string;
+  reason?: string;
+}
+
+export interface AdvanceStoryResponse {
+  success: boolean;
+  data?: {
+    newChapter: StoryChapter;
+    previousStats: VotingStats;
+  };
+  error?: string;
+}
+
+export interface GetStoryStatsResponse {
+  success: boolean;
+  data?: {
+    totalChapters: number;
+    totalVotes: number;
+    uniqueParticipants: number;
+    averageVotesPerChapter: number;
+    storyDuration: number;
+    currentEngagement: number;
+  };
+  error?: string;
+}
+
+// Realtime Message Types
+
+export interface RealtimeMessage {
+  type: 'vote_update' | 'chapter_transition' | 'story_reset' | 'voting_ended';
+  timestamp: Date;
+  data: any;
+}
+
+export interface VoteUpdateMessage extends RealtimeMessage {
+  type: 'vote_update';
+  data: {
+    chapterId: string;
+    voteCounts: VoteCount[];
+    totalVotes: number;
+  };
+}
+
+export interface ChapterTransitionMessage extends RealtimeMessage {
+  type: 'chapter_transition';
+  data: {
+    newChapter: StoryChapter;
+    winningChoice: string;
+    previousStats: VotingStats;
+  };
+}
+
+export interface StoryResetMessage extends RealtimeMessage {
+  type: 'story_reset';
+  data: {
+    reason: string;
+    newChapter: StoryChapter;
+  };
+}
+
+export interface VotingEndedMessage extends RealtimeMessage {
+  type: 'voting_ended';
+  data: {
+    chapterId: string;
+    winningChoice: string;
+    finalStats: VotingStats;
+  };
+}
+
+// Error Response Types
+
+export interface ApiError {
+  code: string;
+  message: string;
+  details?: any;
+}
+
+export interface ValidationError extends ApiError {
+  code: 'VALIDATION_ERROR';
+  fields: Record<string, string>;
+}
+
+export interface AuthenticationError extends ApiError {
+  code: 'AUTH_ERROR';
+  message: 'Authentication required' | 'Invalid credentials' | 'Insufficient permissions';
+}
+
+export interface NotFoundError extends ApiError {
+  code: 'NOT_FOUND';
+  resource: string;
+}
+
+export interface ConflictError extends ApiError {
+  code: 'CONFLICT';
+  message: 'Resource conflict' | 'Duplicate vote' | 'Invalid state';
 }

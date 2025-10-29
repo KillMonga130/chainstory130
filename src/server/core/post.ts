@@ -8,20 +8,21 @@ export const createPost = async () => {
 
   return await reddit.submitCustomPost({
     splash: {
-      // Splash Screen Configuration
-      appDisplayName: 'chainstory130',
+      // Halloween-themed splash screen
+      appDisplayName: 'Pumpkin Collector',
       backgroundUri: 'default-splash.png',
-      buttonLabel: 'Tap to Start',
-      description: 'An exciting interactive experience',
+      buttonLabel: '🎃 Start Collecting!',
+      description: 'Help the friendly ghost collect pumpkins while avoiding spooky monsters! Use WASD or arrow keys to move.',
       entryUri: 'index.html',
-      heading: 'Welcome to the Game!',
+      heading: '👻 Halloween Pumpkin Collector 🎃',
       appIconUri: 'default-icon.png',
     },
     postData: {
-      gameState: 'initial',
-      score: 0,
+      gameType: 'halloween-pumpkin-collector',
+      theme: 'spooky',
+      highScore: 0,
     },
     subredditName: subredditName,
-    title: 'chainstory130',
+    title: '🎃 Halloween Pumpkin Collector - Spooky Fun Game! 👻',
   });
 };

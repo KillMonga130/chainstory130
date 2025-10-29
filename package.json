@@ -22,7 +22,14 @@
     "login": "devvit login",
     "launch": "npm run build && npm run deploy && devvit publish",
     "prettier": "prettier-package-json --write ./package.json && prettier --write .",
-    "type-check": "tsc --build"
+    "type-check": "tsc --build",
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:e2e": "vitest --run src/tests/e2e",
+    "test:performance": "vitest --run src/tests/performance",
+    "test:integration": "vitest --run src/tests/integration",
+    "test:coverage": "vitest --run --coverage",
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@devvit/web": "0.12.1",

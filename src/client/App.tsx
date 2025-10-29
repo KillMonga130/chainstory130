@@ -1,86 +1,96 @@
 import { navigateTo } from '@devvit/web/client';
-import { useStory } from './hooks/useStory';
+import { useGame } from './hooks/useGame';
 import { useState } from 'react';
 import { 
-  StoryDisplay, 
-  SubmissionForm, 
-  LoadingSpinner, 
-  LeaderboardSkeleton, 
-  ArchiveSkeleton,
+  GameBoard,
+  GameUI,
+  LoadingSpinner,
   ConnectionStatus,
   ErrorBoundary,
   NetworkError,
-  HelpButton,
-  Leaderboard,
-  Archive
+  Leaderboard
 } from './components';
+import { useNetworkStatus } from './hooks/useNetworkStatus';
 
-type TabType = 'story' | 'leaderboard' | 'archive';
+type TabType = 'game' | 'leaderboard';
 
 export const App = () => {
   const { 
-    story, 
+    gameState, 
+    config, 
     loading, 
-    submitting, 
-    lastSubmissionMessage, 
     error,
-    isRetrying,
-    retryCount,
-    submitSentence, 
-    refreshStory,
-    retryLoadStory,
-    networkStatus
-  } = useStory();
-  const [activeTab, setActiveTab] = useState<TabType>('story');
+    startGame,
+    moveMouseDirection,
+    pauseGame
+  } = useGame();
+  const networkStatus = useNetworkStatus();
+  const [activeTab, setActiveTab] = useState<TabType>('game');
 
-  // Show error state if there's an error and no story data
-  if (error && !story && !loading) {
+  // Show error state if there's an error and no game data
+  if (error && !gameState && !loading) {
     return (
       <div className="flex justify-center items-center min-h-screen safe-area-padding p-4">
         <NetworkError
-          onRetry={retryLoadStory}
-          retrying={isRetrying}
-          retryCount={retryCount}
+          onRetry={startGame}
+          retrying={loading}
+          retryCount={0}
           maxRetries={3}
         />
       </div>
     );
   }
 
-  if (loading && !story) {
+  if (loading && !gameState) {
     return (
       <div className="flex justify-center items-center min-h-screen safe-area-padding">
-        <LoadingSpinner message="Loading Chain Story..." />
+        <LoadingSpinner message="Loading Cat vs Mouse Chase..." />
       </div>
     );
   }
 
   const renderTabContent = () => {
     switch (activeTab) {
-      case 'story':
+      case 'game':
         return (
           <div className="space-y-6">
-            {story && <StoryDisplay story={story} />}
-            {story?.status === 'active' && (
-              <SubmissionForm
-                storyId={story.id}
-                roundNumber={story.roundNumber}
-                submitting={submitting}
-                lastSubmissionMessage={lastSubmissionMessage}
-                onSubmit={submitSentence}
-              />
+            {gameState && config && (
+              <>
+                <GameUI
+                  gameState={gameState}
+                  onStartGame={startGame}
+                  onPauseGame={pauseGame}
+                  isLoading={loading}
+                />
+                <div className="flex justify-center">
+                  <GameBoard
+                    gameState={gameState}
+                    config={config}
+                    onMouseMove={moveMouseDirection}
+                  />
+                </div>
+              </>
             )}
-            {story?.status === 'completed' && (
-              <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded-lg">
-                🎉 Story Complete! This story has reached 100 sentences and has been archived.
+            {!gameState && (
+              <div className="text-center py-12">
+                <div className="text-6xl mb-4">🐭🐱</div>
+                <h2 className="text-2xl font-bold mb-4">Cat vs Mouse Chase!</h2>
+                <p className="text-gray-600 mb-6">
+                  Help the mouse collect cheese while avoiding the hungry cat!
+                </p>
+                <button
+                  onClick={startGame}
+                  className="px-6 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                  disabled={loading}
+                >
+                  🎮 Start Playing
+                </button>
               </div>
             )}
           </div>
         );
       case 'leaderboard':
         return <Leaderboard />;
-      case 'archive':
-        return <Archive />;
       default:
         return null;
     }
@@ -93,85 +103,64 @@ export const App = () => {
         <ConnectionStatus isOnline={networkStatus.isOnline} />
         
         <div className="w-full max-w-4xl mx-auto p-3 sm:p-4">
-        <div className="flex justify-between items-center mb-4 sm:mb-6">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Chain Story</h1>
-          <HelpButton />
-        </div>
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+              🐭 Cat vs Mouse Chase 🐱
+            </h1>
+          </div>
 
-        {/* Tab Navigation - Mobile optimized */}
-        <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
-          <button
-            onClick={() => setActiveTab('story')}
-            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
-              activeTab === 'story'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Story
-          </button>
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
-              activeTab === 'leaderboard'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Leaderboard
-          </button>
-          <button
-            onClick={() => setActiveTab('archive')}
-            className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
-              activeTab === 'archive'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Archive
-          </button>
-        </div>
-
-        {/* Tab Content */}
-        <div className="min-h-[24rem]">
-          {renderTabContent()}
-        </div>
-
-        {/* Refresh Button - Only show on Story tab, mobile optimized */}
-        {activeTab === 'story' && (
-          <div className="text-center mt-4 sm:mt-6">
+          {/* Tab Navigation - Mobile optimized */}
+          <div className="flex border-b border-gray-200 mb-4 sm:mb-6 overflow-x-auto">
             <button
-              onClick={refreshStory}
-              className="touch-button bg-gray-600 text-white py-3 px-6 rounded-lg hover:bg-gray-700 active:bg-gray-800 transition-colors font-medium"
+              onClick={() => setActiveTab('game')}
+              className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
+                activeTab === 'game'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
             >
-              Refresh Story
+              🎮 Game
+            </button>
+            <button
+              onClick={() => setActiveTab('leaderboard')}
+              className={`touch-button flex-shrink-0 px-4 sm:px-6 py-3 font-medium text-sm border-b-2 transition-colors no-select ${
+                activeTab === 'leaderboard'
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              🏆 Leaderboard
             </button>
           </div>
-        )}
-      </div>
 
-      <footer className="mt-auto py-4 flex justify-center gap-3 text-xs sm:text-sm text-gray-600 safe-area-padding">
-        <button
-          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
-          onClick={() => navigateTo('https://developers.reddit.com/docs')}
-        >
-          Docs
-        </button>
-        <span className="text-gray-300">|</span>
-        <button
-          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
-          onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
-        >
-          r/Devvit
-        </button>
-        <span className="text-gray-300">|</span>
-        <button
-          className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
-          onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
-        >
-          Discord
-        </button>
-      </footer>
+          {/* Tab Content */}
+          <div className="min-h-[24rem]">
+            {renderTabContent()}
+          </div>
+        </div>
+
+        <footer className="mt-auto py-4 flex justify-center gap-3 text-xs sm:text-sm text-gray-600 safe-area-padding">
+          <button
+            className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
+            onClick={() => navigateTo('https://developers.reddit.com/docs')}
+          >
+            Docs
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
+            onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
+          >
+            r/Devvit
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            className="touch-button cursor-pointer hover:text-gray-800 active:text-gray-900 transition-colors"
+            onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
+          >
+            Discord
+          </button>
+        </footer>
       </div>
     </ErrorBoundary>
   );

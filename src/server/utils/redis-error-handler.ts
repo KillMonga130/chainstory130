@@ -65,6 +65,9 @@ export class RedisErrorHandler {
     return this.withErrorHandling(
       async () => {
         const { redis } = context;
+        if (!redis) {
+          throw new Error('Redis is not available in context');
+        }
         return await redis.get(key);
       },
       `GET ${key}`,
@@ -81,6 +84,9 @@ export class RedisErrorHandler {
     await this.withErrorHandling(
       async () => {
         const { redis } = context;
+        if (!redis) {
+          throw new Error('Redis is not available in context');
+        }
         await redis.set(key, value, options);
       },
       `SET ${key}`
@@ -103,6 +109,9 @@ export class RedisErrorHandler {
     return this.withErrorHandling(
       async () => {
         const { redis } = context;
+        if (!redis) {
+          throw new Error('Redis is not available in context');
+        }
         const data = await redis.get(key);
         if (!data) return null;
         
@@ -128,6 +137,9 @@ export class RedisErrorHandler {
     await this.withErrorHandling(
       async () => {
         const { redis } = context;
+        if (!redis) {
+          throw new Error('Redis is not available in context');
+        }
         const jsonString = JSON.stringify(value);
         await redis.set(key, jsonString, options);
       },

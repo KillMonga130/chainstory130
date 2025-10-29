@@ -1,5 +1,52 @@
 @import 'tailwindcss';
 
+/* Horror Theme CSS Variables */
+:root {
+  /* Color Palette */
+  --horror-black: #0a0a0a;
+  --horror-dark-gray: #1a1a1a;
+  --horror-gray: #2a2a2a;
+  --horror-light-gray: #3a3a3a;
+  --horror-red: #8b0000;
+  --horror-blood-red: #660000;
+  --horror-orange: #ff4500;
+  --horror-yellow: #ffd700;
+  --horror-white: #f5f5f5;
+  --horror-fog: #e6e6e6;
+
+  /* Typography */
+  --horror-font-primary: 'Creepster', 'Chiller', cursive;
+  --horror-font-secondary: 'Nosifer', 'Butcherman', serif;
+  --horror-font-body: 'Crimson Text', 'Georgia', serif;
+  --horror-font-ui: 'Inter', 'Arial', sans-serif;
+
+  /* Spacing */
+  --horror-spacing-xs: 0.25rem;
+  --horror-spacing-sm: 0.5rem;
+  --horror-spacing-md: 1rem;
+  --horror-spacing-lg: 1.5rem;
+  --horror-spacing-xl: 2rem;
+  --horror-spacing-2xl: 3rem;
+
+  /* Shadows */
+  --horror-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.8);
+  --horror-shadow-md: 0 4px 8px rgba(0, 0, 0, 0.9);
+  --horror-shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.95);
+  --horror-shadow-glow: 0 0 20px rgba(139, 0, 0, 0.5);
+  --horror-shadow-text: 2px 2px 4px rgba(0, 0, 0, 0.9);
+
+  /* Borders */
+  --horror-border-thin: 1px solid var(--horror-gray);
+  --horror-border-thick: 3px solid var(--horror-red);
+  --horror-border-radius: 8px;
+  --horror-border-radius-lg: 12px;
+
+  /* Transitions */
+  --horror-transition-fast: 0.15s ease-in-out;
+  --horror-transition-normal: 0.3s ease-in-out;
+  --horror-transition-slow: 0.6s ease-in-out;
+}
+
 /* Mobile-first responsive design improvements */
 @layer base {
   html {
@@ -7,48 +54,522 @@
     -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Improve scrolling performance */
+    scroll-behavior: smooth;
+    /* Horror theme background */
+    background-color: var(--horror-black);
+    color: var(--horror-white);
   }
-  
+
   body {
     /* Prevent horizontal scroll on mobile */
     overflow-x: hidden;
+    /* Improve touch scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    /* Horror theme styling */
+    background: linear-gradient(135deg, var(--horror-black) 0%, var(--horror-dark-gray) 100%);
+    font-family: var(--horror-font-body);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* Horror-themed focus styles */
+  *:focus {
+    outline: 2px solid var(--horror-red);
+    outline-offset: 2px;
+    box-shadow: var(--horror-shadow-glow);
+  }
+
+  /* Reduce motion for users who prefer it */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
 @layer components {
-  /* Touch-friendly button styles */
-  .touch-button {
+
+  /* Horror-themed button styles */
+  .horror-button {
     @apply min-h-[44px] min-w-[44px] touch-manipulation;
+    background: linear-gradient(135deg, var(--horror-red) 0%, var(--horror-blood-red) 100%);
+    color: var(--horror-white);
+    border: var(--horror-border-thin);
+    border-radius: var(--horror-border-radius);
+    font-family: var(--horror-font-ui);
+    font-weight: 600;
+    text-shadow: var(--horror-shadow-text);
+    box-shadow: var(--horror-shadow-md);
+    transition: all var(--horror-transition-normal);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
   }
-  
+
+  .horror-button:hover {
+    background: linear-gradient(135deg, var(--horror-blood-red) 0%, var(--horror-red) 100%);
+    box-shadow: var(--horror-shadow-glow);
+    transform: translateY(-2px);
+  }
+
+  .horror-button:active {
+    transform: translateY(0);
+    box-shadow: var(--horror-shadow-sm);
+  }
+
+  .horror-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Horror-themed voting button */
+  .voting-button {
+    @extend .horror-button;
+    padding: var(--horror-spacing-md) var(--horror-spacing-lg);
+    margin: var(--horror-spacing-sm);
+    border: 2px solid transparent;
+    background: var(--horror-dark-gray);
+    color: var(--horror-fog);
+  }
+
+  .voting-button:hover {
+    border-color: var(--horror-red);
+    background: var(--horror-gray);
+    color: var(--horror-white);
+  }
+
+  .voting-button.selected {
+    background: var(--horror-red);
+    border-color: var(--horror-orange);
+    color: var(--horror-white);
+    box-shadow: var(--horror-shadow-glow);
+  }
+
+  /* Horror-themed card styles */
+  .horror-card {
+    @apply mx-2 sm:mx-0;
+    background: var(--horror-dark-gray);
+    border: var(--horror-border-thin);
+    border-radius: var(--horror-border-radius-lg);
+    box-shadow: var(--horror-shadow-lg);
+    padding: var(--horror-spacing-lg);
+    margin: var(--horror-spacing-md);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .horror-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, var(--horror-red) 50%, transparent 100%);
+  }
+
+  /* Story chapter card */
+  .story-chapter {
+    @extend .horror-card;
+    background: linear-gradient(135deg, var(--horror-dark-gray) 0%, var(--horror-gray) 100%);
+    border: var(--horror-border-thick);
+    text-align: center;
+  }
+
   /* Mobile-optimized form inputs */
-  .mobile-input {
-    @apply text-base; /* Prevents zoom on iOS */
+  .horror-input {
+    @apply text-base;
+    background: var(--horror-gray);
+    border: var(--horror-border-thin);
+    border-radius: var(--horror-border-radius);
+    color: var(--horror-white);
+    padding: var(--horror-spacing-md);
+    font-family: var(--horror-font-ui);
+    transition: all var(--horror-transition-normal);
   }
-  
+
+  .horror-input:focus {
+    border-color: var(--horror-red);
+    background: var(--horror-light-gray);
+    box-shadow: var(--horror-shadow-glow);
+  }
+
   /* Improved mobile scrolling */
   .mobile-scroll {
     -webkit-overflow-scrolling: touch;
   }
-  
-  /* Mobile-friendly card spacing */
-  .mobile-card {
-    @apply mx-2 sm:mx-0;
-  }
 }
 
 @layer utilities {
+
   /* Safe area padding for mobile devices with notches */
   .safe-area-padding {
     padding-left: env(safe-area-inset-left);
     padding-right: env(safe-area-inset-right);
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
   }
-  
+
   /* Prevent text selection on touch interfaces */
   .no-select {
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+  }
+
+  /* Horror-themed transitions */
+  .horror-transition {
+    transition: all var(--horror-transition-normal);
+  }
+
+  .horror-transition-fast {
+    transition: all var(--horror-transition-fast);
+  }
+
+  .horror-transition-slow {
+    transition: all var(--horror-transition-slow);
+  }
+
+  /* Horror-themed typography utilities */
+  .horror-title {
+    font-family: var(--horror-font-primary);
+    font-size: 2.5rem;
+    color: var(--horror-red);
+    text-shadow: var(--horror-shadow-text);
+    text-align: center;
+    margin: var(--horror-spacing-lg) 0;
+  }
+
+  .horror-subtitle {
+    font-family: var(--horror-font-secondary);
+    font-size: 1.5rem;
+    color: var(--horror-orange);
+    text-shadow: var(--horror-shadow-text);
+    margin: var(--horror-spacing-md) 0;
+  }
+
+  .horror-text {
+    font-family: var(--horror-font-body);
+    color: var(--horror-fog);
+    line-height: 1.8;
+    margin: var(--horror-spacing-md) 0;
+  }
+
+  /* Horror-themed animations */
+  .flicker-animation {
+    animation: flicker 2s infinite;
+  }
+
+  .glow-animation {
+    animation: glow 3s ease-in-out infinite alternate;
+  }
+
+  .shake-animation {
+    animation: shake 0.5s ease-in-out;
+  }
+
+  .fade-in-animation {
+    animation: fadeIn 1s ease-in-out;
+  }
+
+  .slide-up-animation {
+    animation: slideUp 0.8s ease-out;
+  }
+
+  @keyframes flicker {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.8;
+    }
+
+    75% {
+      opacity: 0.9;
+    }
+  }
+
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 10px var(--horror-red);
+      text-shadow: 0 0 10px var(--horror-red);
+    }
+
+    to {
+      box-shadow: 0 0 20px var(--horror-red), 0 0 30px var(--horror-red);
+      text-shadow: 0 0 20px var(--horror-red);
+    }
+  }
+
+  @keyframes shake {
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    25% {
+      transform: translateX(-5px);
+    }
+
+    75% {
+      transform: translateX(5px);
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Loading animation with horror theme */
+  .horror-pulse {
+    animation: horrorPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes horrorPulse {
+
+    0%,
+    100% {
+      opacity: 1;
+      box-shadow: 0 0 10px var(--horror-red);
+    }
+
+    50% {
+      opacity: 0.7;
+      box-shadow: 0 0 20px var(--horror-red);
+    }
+  }
+
+  /* Horror-themed focus ring */
+  .horror-focus-ring {
+    @apply focus:outline-none;
+  }
+
+  .horror-focus-ring:focus {
+    box-shadow: var(--horror-shadow-glow);
+    border-color: var(--horror-red);
+  }
+
+  /* High contrast mode support with horror theme */
+  @media (prefers-contrast: high) {
+    .horror-card {
+      border: 3px solid var(--horror-white);
+    }
+
+    .horror-button {
+      border: 2px solid var(--horror-white);
+    }
+
+    :root {
+      --horror-red: #ff0000;
+      --horror-white: #ffffff;
+      --horror-black: #000000;
+    }
+  }
+}
+
+/* Horror Story App Specific Styles */
+.story-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--horror-spacing-lg);
+  padding: var(--horror-spacing-lg);
+  min-height: 100vh;
+  background: radial-gradient(ellipse at center, var(--horror-dark-gray) 0%, var(--horror-black) 100%);
+}
+
+.story-header {
+  text-align: center;
+  margin-bottom: var(--horror-spacing-xl);
+}
+
+.story-content {
+  max-width: 800px;
+  width: 100%;
+  background: var(--horror-dark-gray);
+  border: var(--horror-border-thick);
+  border-radius: var(--horror-border-radius-lg);
+  padding: var(--horror-spacing-xl);
+  box-shadow: var(--horror-shadow-lg);
+  position: relative;
+}
+
+.story-content::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, var(--horror-red), var(--horror-orange), var(--horror-red));
+  border-radius: var(--horror-border-radius-lg);
+  z-index: -1;
+  opacity: 0.3;
+}
+
+.voting-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--horror-spacing-md);
+  margin-top: var(--horror-spacing-xl);
+}
+
+.vote-count-display {
+  background: var(--horror-gray);
+  border-radius: var(--horror-border-radius);
+  padding: var(--horror-spacing-sm);
+  margin-top: var(--horror-spacing-sm);
+  font-family: var(--horror-font-ui);
+  font-size: 0.875rem;
+  color: var(--horror-fog);
+  text-align: center;
+}
+
+.progress-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--horror-spacing-sm);
+  margin: var(--horror-spacing-lg) 0;
+}
+
+.progress-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--horror-gray);
+  transition: all var(--horror-transition-normal);
+}
+
+.progress-dot.active {
+  background: var(--horror-red);
+  box-shadow: 0 0 10px var(--horror-red);
+}
+
+.progress-dot.completed {
+  background: var(--horror-orange);
+}
+
+/* Story history sidebar */
+.story-history {
+  position: fixed;
+  right: -300px;
+  top: 0;
+  width: 300px;
+  height: 100vh;
+  background: var(--horror-dark-gray);
+  border-left: var(--horror-border-thick);
+  padding: var(--horror-spacing-lg);
+  transition: right var(--horror-transition-slow);
+  z-index: 1000;
+  overflow-y: auto;
+}
+
+.story-history.open {
+  right: 0;
+}
+
+.history-toggle {
+  position: fixed;
+  right: var(--horror-spacing-md);
+  top: var(--horror-spacing-md);
+  z-index: 1001;
+}
+
+/* Mobile optimizations for horror story */
+@media (max-width: 768px) {
+  .story-container {
+    padding: var(--horror-spacing-md);
+    gap: var(--horror-spacing-md);
+  }
+
+  .story-content {
+    padding: var(--horror-spacing-lg);
+  }
+
+  .horror-title {
+    font-size: 2rem;
+  }
+
+  .horror-subtitle {
+    font-size: 1.25rem;
+  }
+
+  .voting-section {
+    grid-template-columns: 1fr;
+    gap: var(--horror-spacing-sm);
+  }
+
+  .story-history {
+    width: 100%;
+    right: -100%;
+  }
+
+  .voting-button {
+    padding: var(--horror-spacing-md);
+    margin: var(--horror-spacing-xs);
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .voting-section {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Loading states */
+.story-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: var(--horror-spacing-md);
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--horror-gray);
+  border-top: 3px solid var(--horror-red);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
   }
 }

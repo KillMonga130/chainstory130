@@ -16,11 +16,14 @@
   "media": {
     "dir": "assets"
   },
+  "permissions": {
+    "redis": true
+  },
   "menu": {
     "items": [
       {
-        "label": "Create Chain Story Post",
-        "description": "Start a new collaborative storytelling game",
+        "label": "Create Cat vs Mouse Game Post",
+        "description": "Start a new Cat vs Mouse Chase game",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
@@ -30,18 +33,7 @@
   "triggers": {
     "onAppInstall": "/internal/on-app-install"
   },
-  "scheduler": {
-    "tasks": {
-      "hourlyRoundResolution": {
-        "cron": "0 * * * *",
-        "endpoint": "/internal/scheduler/hourly-round"
-      },
-      "dailyMaintenance": {
-        "cron": "0 0 * * *",
-        "endpoint": "/internal/scheduler/daily-maintenance"
-      }
-    }
-  },
+
   "dev": {
     "subreddit": "chainstory130_dev"
   }
